@@ -58,4 +58,5 @@ class ZumaTowerModel:
     def exp(self) -> int:
         return self._total_exp
     
+    def try_place_tower(self, row: int, col: int, tower_type: TowerType)
     

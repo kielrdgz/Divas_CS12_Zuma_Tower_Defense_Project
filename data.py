@@ -5,8 +5,10 @@ from typing import Protocol
 
 class ZumaTowerState(StrEnum):
     MENU = "MENU"
+    PAUSE = "PAUSE"
     ROUND_PENDING = "ROUNDPENDING"
     ONGOING = "ONGOING"
+    QUIT = "QUIT"
     GAMEOVER = "GAMEOVER"
 
 class Color(StrEnum):
