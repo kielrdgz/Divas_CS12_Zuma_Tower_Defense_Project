@@ -1,7 +1,8 @@
 #pyright: strict
 
 from __future__ import annotations
-import random
+from data import Color, EnemyStatus, EnemyType
+from enemies import Enemy, NormalEnemy, ChameleonEnemy
 from random import Random
 
 from data import *
