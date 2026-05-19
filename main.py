@@ -4,6 +4,7 @@ from model import *
 from view import View
 from controller import Controller
 
+# test for commit
 
 if __name__ == '__main__':
     # model = Model.get_simple_model()  # logic
