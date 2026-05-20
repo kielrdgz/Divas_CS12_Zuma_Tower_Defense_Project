@@ -34,8 +34,6 @@ class Bullet:
         self._is_moving: bool = True
 
     def update(self) -> None:
-        local SCREEN_WIDTH, SCREEN_HEIGHT
-
         self._x += self._vx 
         self._y += self._vy
         if self._x < 0 or self._x > SCREEN_WIDTH or self._y < 0 or self._y > SCREEN_HEIGHT: # out of bounds

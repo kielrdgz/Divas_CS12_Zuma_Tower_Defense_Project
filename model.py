@@ -1,7 +1,7 @@
 #pyright: strict
-
 from __future__ import annotations
-import random
+from data import Color, EnemyStatus, EnemyType
+from enemies import Enemy, NormalEnemy, ChameleonEnemy
 from random import Random
 
 from data import *
@@ -11,7 +11,7 @@ from towers import *
 CELL_SIZE: int = 16
 SCREEN_HEIGHT: int = 240
 SCREEN_WIDTH: int = 360
-COLORS = [Color.RED, Color.ORANGE, Color.YELLOW, Color.GREEN, Color.BLUE, Color.VIOLET]
+COLORS: list[Color] = [Color.RED, Color.ORANGE, Color.YELLOW, Color.GREEN, Color.BLUE, Color.VIOLET]
 
 class SimpleGameOverCondition:
     def is_game_over(self, user_hp: int, spawned_enemies: int, killed: int, active_enemies: int) -> bool:
@@ -36,7 +36,6 @@ class SimpleEnemyPopupPlan:
 
 class ZumaTowerModel:
     def __init__(self, enemies: list[Enemy], user_hp: int, max_rounds: int, popup_plan: PopupPlan, game_over_condition: GameOverCondition, rng: Random):
-        local COLORS
         self._enemies = enemies
 
         for i, e in enumerate(self._enemies):
@@ -75,7 +74,7 @@ class ZumaTowerModel:
         self.generate_path() # depends on GameState if GameState.STANDARD | GameState.CAMPAIGN | GameState.ENDLESS 
 
     def generate_path(self) -> None:
-        # diko pa alam if gawa muna tayo ng maps lmao or what
+        ... # diko pa alam if gawa muna tayo ng maps lmao or what
 
     @property
     def curr_bullet_color(self) -> Color:
@@ -123,8 +122,8 @@ class ZumaTowerModel:
             return False
         return self.grid[row][col] == CellType.EMPTY # cell is available/empty 
     
-    def spawn_bullet(self, target_x: floar, target_y: float) -> None:
-        local CELL_SIZE
+    def spawn_bullet(self, target_x: float, target_y: float) -> None:
+        global CELL_SIZE
         if self._state != GameState.ONGOING:
             return None
         
@@ -139,7 +138,7 @@ class ZumaTowerModel:
             vx = (dx / d) * speed
             vy = (dy / d) * speed
             color = self._color_queue.pop(0)
-            new_color = self.rng.choice.(COLORS)
+            new_color = self.rng.choice(COLORS)
             self._color_queue.append(new_color)
             bullet = Bullet(origin_x, origin_y, vy, vy, color)
             self._moving_bullets(bullet)
@@ -178,11 +177,12 @@ class ZumaTowerModel:
 
         self._is_game_over = False
 
-    # configure path
-    # configure quit UI
-    # configure cancel quit
+    def check_if_game_over(self):
+        if self._game_over_condition.is_game_over(self._user_hp, self._tot_spawned_enemies, self._tot_killed, self._active_enemies):
+            self._is_game_over = True
+            self._state = GameState.GAMEOVER
 
-    def update(self) -> None:
+    def update(self):
         if self._state != GameState.ONGOING:
             return None
         
@@ -192,14 +192,20 @@ class ZumaTowerModel:
 
         for bullet in self._moving_bullets:
             bullet.update()
-        self._moving_bullets = [b for b in self._moving_bullets if b._is_moving]
 
-        active = len([e for e in self._enemies if e._state == EnemyState.ALIVE])
+        self._moving_bullets = [b for b in self._moving_bullets if b.is_moving]
 
-        if self._game_over_condition.is_game_over(self._user_hp, self._tot_spawned_enemies, self._tot_killed, active)
-            self._is_game_over = True
-            self._state = GameState.GAMEOVER
-        
+        for enemy in self._enemies:
+            if enemy.status == EnemyStatus.ALIVE:
+                enemy.move(1)
+
+        self.check_if_game_over()
+
+    # configure path
+    # configure quit UI
+    # configure cancel quit
+
+
     
     
     

@@ -1,17 +1,13 @@
 # pyright: strict
 
 from model import *
-from view import View
-from controller import Controller
-
-# test for commit
+from view import ZumaTowerView
+from controller import ZumaTowerController
 
 if __name__ == '__main__':
     # model = Model.get_simple_model()  # logic
     # model = Model.get_simple_random_model()
-    model = Model.get_inf_random_model()
-
-    view = View(200, 200)  # what the user sees
-    controller = Controller(model, view)  # glues model & view
-
+    model = ZumaTowerModel.get_inf_random_model()
+    view = ZumaTowerView(model.SCREEN_HEIGHT, model.SCREEN_WIDTH)
+    controller = ZumaTowerController(model, view)
     controller.start_game()
