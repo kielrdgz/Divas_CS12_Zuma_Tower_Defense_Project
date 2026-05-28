@@ -32,6 +32,7 @@ class ZumaTowerView:
         m = self._model
         
         self._draw_path()
+        self._draw_towers()
         self._draw_enemies()
         self._draw_bullets()
         self._draw_shooter()
@@ -79,12 +80,29 @@ class ZumaTowerView:
         pyxel.trib(sx, sy - 10, sx - 7, sy + 5, sx + 7, sy + 5, COL_DARK)
         col = PYXEL_COLOR[m.bullet_color]
         pyxel.circ(sx, sy, 3, col)
+
+    def _draw_towers(self) -> None:
+        from data import CellType
+        m = self._model
+        for r in range(m._rows):
+            for c in range(m._cols):
+                if m._grid[r][c] == CellType.TOWER:
+                    x = c * CELL_SIZE
+                    y = r * CELL_SIZE
+                    # Draw an orange block for the tower
+                    pyxel.rect(x, y, CELL_SIZE, CELL_SIZE, 9)
  
     def _draw_hud(self) -> None:
         m = self._model
         pyxel.text(4, 4,  f"HP:  {m.user_hp}", COL_WHITE)
         pyxel.text(4, 12, f"EXP: {m.total_exp}", COL_WHITE)
-        pyxel.text(4, 20, f"Killed: {m.tot_killed}/{m.num_enemies}", COL_WHITE)
+        pyxel.text(4, 20, f"Round: {m._curr_round}/{m._max_rounds}", COL_WHITE)
+        
+        if m.state.value == "ROUNDPENDING":
+            pyxel.rect(40, 90, 240, 50, COL_DARK)
+            pyxel.text(50, 98, "ROUND 1 COMPLETE!", COL_WHITE)
+            pyxel.text(50, 110, "Click grid to place Tower (Cost: 5 EXP)", 9)
+            pyxel.text(50, 124, "Press SPACE to start Round 2", 10)
  
     def _draw_game_over(self) -> None:
         m = self._model

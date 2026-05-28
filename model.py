@@ -80,7 +80,8 @@ class ZumaTowerModel:
         self._shooter_x: float = SCREEN_WIDTH / 2
         self._shooter_y: float = SCREEN_HEIGHT - CELL_SIZE
         
-        self._bullet_color: Color = PHASE1_COLORS[0]
+        active_colors = list(set(e.color for e in self._enemies))
+        self._bullet_color: Color = self.rng.choice(active_colors) if active_colors else Color.RED
         
         path_y = SCREEN_HEIGHT // 2
         self._path_y: int = path_y
@@ -170,38 +171,90 @@ class ZumaTowerModel:
             return
         
         self._curr_tick += 1
+        
         if self._shoot_cooldown > 0:
             self._shoot_cooldown -= 1
 
         if (self._next_spawn_idx < len(self._enemies) and self._curr_tick % SPAWN_INTERVAL == 0):
             e = self._enemies[self._next_spawn_idx]
-            e.set_position(-CELL_SIZE, float(self._path_y))
+            e.set_position(self._path[0][0], self._path[0][1])
             self._next_spawn_idx += 1
             self._tot_spawned += 1
             
         for e in self._enemies:
-            if e.status == EnemyStatus.ALIVE:
-                # If they just spawned, put them at the first waypoint
-                if e.x < 0:
-                    e.set_position(self._path[0][0], self._path[0][1])
-                
+            if e.status == EnemyStatus.ALIVE and e.x >= 0:
                 e.move(self._path, ENEMY_SPEED)
                 
                 if e.waypoint_idx >= len(self._path):
                     e._status = EnemyStatus.DEAD
                     self._user_hp -= 1
-                    self._tot_killed += 1
                     
         for b in self._moving_bullets:
             b.update()
         self._moving_bullets = [b for b in self._moving_bullets if b.is_moving]
         
+        for tower in self._active_towers:
+            tower.update_cooldown()
+            
+            if tower.can_shoot():
+                vx = 0.0
+                vy = -BULLET_SPEED
+                
+                active_colors = list(set(e.color for e in self._enemies))
+                bullet_color = self.rng.choice(active_colors) if active_colors else self._bullet_color
+                
+                bullet = Bullet(tower.x, tower.y, vx, vy, bullet_color)
+                self._moving_bullets.append(bullet)
+                
+                tower.reset_cooldown()
+
         self._check_collisions()
         
         active_count = sum(1 for e in self._enemies if e.status == EnemyStatus.ALIVE and e.x >= -CELL_SIZE)
-        if self._game_over_condition.is_game_over(self._user_hp, self._tot_spawned, self._tot_killed, active_count):
+        
+        if self._user_hp <= 0:
             self._is_game_over = True
             self._state = GameState.GAMEOVER
+            
+        elif self._tot_spawned >= len(self._enemies) and active_count == 0:
+            if self._curr_round < self._max_rounds:
+                self._state = GameState.ROUND_PENDING 
+            else:
+                self._is_game_over = True
+                self._state = GameState.GAMEOVER    
+
+    def start_next_round(self) -> None:
+        """Resets the enemies and triggers Round 2"""
+        if self._state == GameState.ROUND_PENDING:
+            self._curr_round += 1
+            self._tot_spawned = 0
+            self._next_spawn_idx = 0
+            
+            for e in self._enemies:
+                e._status = EnemyStatus.ALIVE
+                e.set_position(-CELL_SIZE, self._path[0][1])
+                e.waypoint_idx = 1
+                
+            self._state = GameState.ONGOING
+
+    def try_place_tower(self, row: int, col: int) -> bool:
+        if self._state != GameState.ROUND_PENDING:
+            return False
+            
+        TOWER_COST = 5
+        
+        if self._total_exp >= TOWER_COST and self._grid[row][col] == CellType.EMPTY:
+            self._total_exp -= TOWER_COST
+            self._grid[row][col] = CellType.TOWER
+            
+            tower_x = (col * CELL_SIZE) + (CELL_SIZE / 2)
+            tower_y = (row * CELL_SIZE) + (CELL_SIZE / 2)
+            
+            self._active_towers.append(Tower(tower_x, tower_y))
+            return True
+            
+        return False
+    
             
     def _check_collisions(self) -> None:
         bullets_to_remove: set[int] = set()
@@ -263,7 +316,13 @@ class ZumaTowerModel:
             vy = (dy / d) * speed
             
             color = self._bullet_color
-            new_color = self.rng.choice(COLORS)
+            
+            active_colors = list(set(e.color for e in self._enemies))
+            if active_colors:
+                new_color = self.rng.choice(active_colors)
+            else:
+                new_color = color 
+                
             self._bullet_color = new_color
             
             bullet = Bullet(origin_x, origin_y, vx, vy, color)

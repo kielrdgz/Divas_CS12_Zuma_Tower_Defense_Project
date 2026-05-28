@@ -24,6 +24,24 @@ class ZumaTowerController:
  
         self._model.update()
  
+        if self._model.state.value == "ONGOING":
+            if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+                self._model.shoot(pyxel.mouse_x, pyxel.mouse_y)
+                
+        elif self._model.state.value == "ROUNDPENDING":
+            # Press Space to start Round 2
+            if pyxel.btnp(pyxel.KEY_SPACE):
+                self._model.start_next_round()
+                
+            # Click to place a tower
+            elif pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+                from data import CELL_SIZE
+                col = pyxel.mouse_x // CELL_SIZE
+                row = pyxel.mouse_y // CELL_SIZE
+                self._model.try_place_tower(row, col)
+ 
+        self._model.update()
+ 
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             self._model.shoot(pyxel.mouse_x, pyxel.mouse_y)
  
