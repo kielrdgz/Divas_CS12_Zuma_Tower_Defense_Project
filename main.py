@@ -1,17 +1,36 @@
 # pyright: strict
+import json
+from random import Random
 
-from model import *
-from view import View
-from controller import Controller
+from model import ZumaTowerModel, SimpleGameOverCondition  
+from view import ZumaTowerView
+from controller import ZumaTowerController
+from data import Color                                     
+from enemies import NormalEnemy
 
-# test for commit
+def load_settings() -> dict[str, int]:
+    with open("settings.json", "r") as file:
+        return json.load(file)
 
 if __name__ == '__main__':
-    # model = Model.get_simple_model()  # logic
-    # model = Model.get_simple_random_model()
-    model = Model.get_inf_random_model()
-
-    view = View(200, 200)  # what the user sees
-    controller = Controller(model, view)  # glues model & view
-
+    config = load_settings()
+    
+    rng = Random()
+    phase2_colors = [Color.RED, Color.BLUE]
+    
+    enemies = [
+        NormalEnemy.standard(rng.choice(phase2_colors)) 
+        for _ in range(config["enemies_per_round"])
+    ]
+    
+    model = ZumaTowerModel(
+        enemies=enemies,
+        user_hp=config["player_lives"],
+        max_rounds=2,
+        game_over_condition=SimpleGameOverCondition(),
+        rng=rng
+    )
+    
+    view = ZumaTowerView(model)
+    controller = ZumaTowerController(model, view)
     controller.start_game()

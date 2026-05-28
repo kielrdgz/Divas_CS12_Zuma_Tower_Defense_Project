@@ -85,12 +85,17 @@ class ZumaTowerModel:
         path_y = SCREEN_HEIGHT // 2
         self._path_y: int = path_y
         self._path: list[tuple[float, float]] = [
-            (float(x), float(path_y))
-            for x in range(0, SCREEN_WIDTH + CELL_SIZE, CELL_SIZE)
+            (0.0, float(SCREEN_HEIGHT // 4)),
+            (float(SCREEN_WIDTH // 2), float(SCREEN_HEIGHT // 4)),
+            (float(SCREEN_WIDTH // 2), float(SCREEN_HEIGHT - 60)),
+            (float(SCREEN_WIDTH + CELL_SIZE), float(SCREEN_HEIGHT - 60))
         ]
         
         self._bullet_radius: int = 5
         self._enemy_half: int = CELL_SIZE // 2
+
+        self._shoot_cooldown: int = 0
+        self._frames_per_shot: int = int(FPS / 0.9)
         
     @property
     def state(self) -> GameState:
@@ -157,7 +162,7 @@ class ZumaTowerModel:
         return self._tot_spawned
     
     @property
-    def num_enemis(self) -> int:
+    def num_enemies(self) -> int:
         return len(self._enemies)
     
     def update(self) -> None:
@@ -165,7 +170,9 @@ class ZumaTowerModel:
             return
         
         self._curr_tick += 1
-        
+        if self._shoot_cooldown > 0:
+            self._shoot_cooldown -= 1
+
         if (self._next_spawn_idx < len(self._enemies) and self._curr_tick % SPAWN_INTERVAL == 0):
             e = self._enemies[self._next_spawn_idx]
             e.set_position(-CELL_SIZE, float(self._path_y))
@@ -173,9 +180,14 @@ class ZumaTowerModel:
             self._tot_spawned += 1
             
         for e in self._enemies:
-            if e._status == EnemyStatus.ALIVE and e.x >= -CELL_SIZE:
-                e.move(dx=ENEMY_SPEED)
-                if e.x > SCREEN_WIDTH + CELL_SIZE:
+            if e.status == EnemyStatus.ALIVE:
+                # If they just spawned, put them at the first waypoint
+                if e.x < 0:
+                    e.set_position(self._path[0][0], self._path[0][1])
+                
+                e.move(self._path, ENEMY_SPEED)
+                
+                if e.waypoint_idx >= len(self._path):
                     e._status = EnemyStatus.DEAD
                     self._user_hp -= 1
                     self._tot_killed += 1
@@ -199,14 +211,19 @@ class ZumaTowerModel:
                     continue
                 if enemy.x < -CELL_SIZE:
                     continue
+                
                 if bullet.color != enemy.color:
                     continue
+                
                 if (abs(bullet.x - enemy.x) < self._enemy_half and abs(bullet.y - enemy.y) < self._enemy_half):
-                    if enemy.status == EnemyStatus.DEAD:
-                        self._tot_killed += 1
-                        self._total_exp += enemy._exp_pts
+                    
+                    enemy._status = EnemyStatus.DEAD  # Kill the enemy
+                    self._tot_killed += 1             # Increment kill count
+                    self._total_exp += enemy._exp_pts # Award EXP/Points
+                    
                     bullets_to_remove.add(bi)
-                    break
+                    break 
+
         self._moving_bullets = [
             b for i, b in enumerate(self._moving_bullets)
             if i not in bullets_to_remove
@@ -226,6 +243,37 @@ class ZumaTowerModel:
             rng=rng,
         )
     
+    def shoot(self, target_x: float, target_y: float) -> None:
+        if self._state != GameState.ONGOING:
+            return
+            
+        if self._shoot_cooldown > 0:
+            return 
+        
+        origin_x = self._shooter_x
+        origin_y = self._shooter_y
+        
+        dx = target_x - origin_x
+        dy = target_y - origin_y
+        d = (dx**2 + dy**2)**0.5
+        
+        if d > 0:
+            speed = BULLET_SPEED
+            vx = (dx / d) * speed
+            vy = (dy / d) * speed
+            
+            color = self._bullet_color
+            new_color = self.rng.choice(COLORS)
+            self._bullet_color = new_color
+            
+            bullet = Bullet(origin_x, origin_y, vx, vy, color)
+            self._moving_bullets.append(bullet)
+            
+            self._shoot_cooldown = self._frames_per_shot
+        
+
+
+
     # def try_place_tower(self, row: int, col: int) -> bool:
     #     if self._state != GameState.ROUNDPENDING:
     #         return False
