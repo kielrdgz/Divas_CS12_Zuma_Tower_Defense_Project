@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 from enum import StrEnum
-from typing import Protocol, TYPE_CHECKING
+from typing import Protocol
 from random import Random
-
-if TYPE_CHECKING:
-    from enemies import Enemy
 
 SCREEN_WIDTH: int = 320
 SCREEN_HEIGHT: int = 240
 FPS: int = 30
 CELL_SIZE: int = 16
 
-_DIAGONAL = (SCREEN_WIDTH**2 + SCREEN_HEIGHT**2) ** 0.5
+_DIAGONAL: float = (SCREEN_WIDTH**2 + SCREEN_HEIGHT**2) ** 0.5
 BULLET_SPEED: float = _DIAGONAL / (5 * FPS)
 
 class GameState(StrEnum):
@@ -33,6 +30,7 @@ class CellType(StrEnum):
     PATH = "PATH"
     USER = "USER" # shooter
     TOWER = "TOWER"
+    UPGRADED_TOWER = "UPGRADEDTOWER"
     
 class Color(StrEnum):
     RED = "RED"
@@ -97,6 +95,13 @@ class Direction(StrEnum):
     DOWN = "DOWN"
     LEFT = "LEFT"
     RIGHT = "RIGHT"
+
+
+# remove this if will not use
+
+# if gagamitin lagay to sa taas
+# if TYPE_CHECKING:
+#     from enemies import Enemy
 
 class PopupPlan(Protocol):
     def enemy_popup(self, curr_tick: int, enemies: list[Enemy], rng: Random) -> list[int]:
