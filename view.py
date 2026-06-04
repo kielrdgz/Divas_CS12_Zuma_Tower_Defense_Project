@@ -41,6 +41,23 @@ class ZumaTowerView:
             getattr(update_fn, "update"),
             getattr(draw_dn, "draw")
         )
+    
+    @staticmethod
+    def cell_center(row: int, col: int) -> tuple[float, float]:
+        return (col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE + CELL_SIZE / 2)
+
+    def draw_grid(self, rows: int, cols: int, grid: list[list[CellType]]) -> None:
+        for r in range(rows):
+            for c in range(cols):
+                x = c * CELL_SIZE
+                y = r * CELL_SIZE
+                # Limit grid drawing to playable area above the HUD
+                if y < SCREEN_HEIGHT - 60:
+                    cell = grid[r][c]
+                    if cell == CellType.PATH:
+                        pyxel.rect(x, y, CELL_SIZE, CELL_SIZE, 1)  # Dark blue for path background
+                    else:
+                        pyxel.rectb(x, y, CELL_SIZE, CELL_SIZE, 5)  # Dark grey borders for empty tiles
 
     def reset_screen(self):
         pyxel.cls(0)
@@ -59,12 +76,12 @@ class ZumaTowerView:
             pyxel.text(100, 80, "No records found.", COL_GRAY)
         else:
             for id, entry in enumerate(records[:10]): # can change to whole
-                y = 50 + (idx * 12)
+                y = 50 + (id * 12)
                 name = entry.get("name", "ANON")
                 score = entry.get("score", 0)
                 round_num = entry.get("round", 1)
                 mode = entry.get("mode", "CAMPAIGN")
-                display_tr: str = f'{id+1}. {name:<6} | XP: {score:<4} | R: {round_num} ({mode})'
+                display_str: str = f'{id+1}. {name:<6} | XP: {score:<4} | R: {round_num} ({mode})'
                 pyxel.text(60, y, display_str, COL_WHITE)
         pyxel.text(70, 200, "Press [M] to return to Main Menu", COL_GREEN)
 
@@ -80,7 +97,7 @@ class ZumaTowerView:
                 x1, y1 = path[i]  # start point of segment
                 x2, y2 = path[i+1]  # end point of segment
                 
-                pyxel.line(x1, y1, x2, y2, COL_BLUE)  # draw straight line between points
+                pyxel.line(int(x1), int(y1), int(x2), int(y2), COL_BLUE)  # draw straight line between points
 
     def draw_tunnels(self, tunnels: dict[int, list[tuple[float, float, float, float]]]) -> None:
         for path_idx, tunnel_list in tunnels.items():
@@ -159,19 +176,18 @@ class ZumaTowerView:
         col = PYXEL_COLOR[bullet_color]
         pyxel.circ(sx, sy, 3, col)  # shows next bullet color
 
-    def draw_towers(self, rows: int, cols: int, grid: list[list[CellType]], tower_dirs: dict[tuple[int, int], Direction], selected: tuple[int, int] | None = None) -> None:
-        for r in range(rows):  # scans grid for towers
+    def draw_towers(self, rows: int, cols: int, grid: list[list[CellType]], tower_dirs: dict[tuple[int, int], Direction], selected: tuple[int, int] | None = None, tower_levels: dict[tuple[int, int], int] | None = None) -> None:
+        for r in range(rows):
             for c in range(cols):
                 x = c * CELL_SIZE
                 y = r * CELL_SIZE
-                if grid[r][c] in (CellType.TOWER, CellType.UPGRADED_TOWER):              # can still change colors of towers since medyo similar with bullets
+                if grid[r][c] in (CellType.TOWER, CellType.UPGRADED_TOWER):
                     color = COL_ORANGE if grid[r][c] == CellType.TOWER else COL_PURPLE
                     pyxel.rect(x, y, CELL_SIZE, CELL_SIZE, color)
 
                     if selected == (r, c):
                         pyxel.rectb(x, y, CELL_SIZE, CELL_SIZE, COL_WHITE)
                     
-                    # Look up this specific tower's pointing vector layout direction string
                     dir_enum = tower_dirs.get((r, c), Direction.UP)
                     dir_str = {
                         Direction.UP:    "W",
@@ -179,13 +195,42 @@ class ZumaTowerView:
                         Direction.LEFT:  "A",
                         Direction.RIGHT: "D",
                     }.get(dir_enum, "?")
-                    pyxel.text(x + 6, y + 5, dir_str, COL_WHITE)
+                    
+                    upgrade_marker = ""
+                    level = (tower_levels or {}).get((r, c), 0)
+                    if level == 1:
+                        upgrade_marker = "+"
+                    elif level == 2:
+                        upgrade_marker = "++"
+                    pyxel.text(x + 1, y + 5, dir_str + upgrade_marker, COL_WHITE)
 
-                #     pyxel.rect(x, y, CELL_SIZE, CELL_SIZE, 9) # orange block for normal tower
-                # elif grid[r][c] == CellType.UPGRADED_TOWER:
-                #     pyxel.rect(x, y, CELL_SIZE, CELL_SIZE, 2) # purple block for upgraded tower
+    # def draw_towers(self, rows: int, cols: int, grid: list[list[CellType]], tower_dirs: dict[tuple[int, int], Direction], selected: tuple[int, int] | None = None) -> None:
+    #     for r in range(rows):  # scans grid for towers
+    #         for c in range(cols):
+    #             x = c * CELL_SIZE
+    #             y = r * CELL_SIZE
+    #             if grid[r][c] in (CellType.TOWER, CellType.UPGRADED_TOWER):              # can still change colors of towers since medyo similar with bullets
+    #                 color = COL_ORANGE if grid[r][c] == CellType.TOWER else COL_PURPLE
+    #                 pyxel.rect(x, y, CELL_SIZE, CELL_SIZE, color)
+
+    #                 if selected == (r, c):
+    #                     pyxel.rectb(x, y, CELL_SIZE, CELL_SIZE, COL_WHITE)
+                    
+    #                 # Look up this specific tower's pointing vector layout direction string
+    #                 dir_enum = tower_dirs.get((r, c), Direction.UP)
+    #                 dir_str = {
+    #                     Direction.UP:    "W",
+    #                     Direction.DOWN:  "S",
+    #                     Direction.LEFT:  "A",
+    #                     Direction.RIGHT: "D",
+    #                 }.get(dir_enum, "?")
+    #                 pyxel.text(x + 6, y + 5, dir_str, COL_WHITE)
+
+    #             #     pyxel.rect(x, y, CELL_SIZE, CELL_SIZE, 9) # orange block for normal tower
+    #             # elif grid[r][c] == CellType.UPGRADED_TOWER:
+    #             #     pyxel.rect(x, y, CELL_SIZE, CELL_SIZE, 2) # purple block for upgraded tower
  
-    def draw_hud(self, user_hp: int, total_exp: int, curr_round: int, max_rounds: int, state: GameState, pending_direction: Direction, selected_tower: tuple[int, int] | None= None, game_mode: GameMode = GameMode.CAMPAIGN) -> None:
+    def draw_hud(self, user_hp: int, total_exp: int, curr_round: int, max_rounds: int, state: GameState, pending_direction: Direction, game_mode: GameMode = GameMode.CAMPAIGN, selected_tower: tuple[int, int] | None= None) -> None:
         pyxel.text(4, 4,  f"HP:  {user_hp}", COL_WHITE)
         pyxel.text(4, 12, f"EXP: {total_exp}", COL_WHITE)
         if game_mode == GameMode.ENDLESS:
@@ -198,31 +243,39 @@ class ZumaTowerView:
             pyxel.text(8, 185, f"ROUND {curr_round} COMPLETE!", COL_WHITE)
             
             dir_label = {
-                Direction.UP:    "UP (W)",
-                Direction.DOWN:  "DOWN (S)",
-                Direction.LEFT:  "LEFT (A)",
+                Direction.UP: "UP (W)",
+                Direction.DOWN: "DOWN (S)",
+                Direction.LEFT: "LEFT (A)",
                 Direction.RIGHT: "RIGHT (D)",
             }.get(pending_direction, "?")
  
             if selected_tower:
                 pyxel.text(8, 194, f"Tower dir (WASD): {dir_label}", COL_YELLOW)
-                pyxel.text(8, 204, "Click tower for options",        COL_YELLOW)
+                pyxel.text(8, 204, "[U key = handled by click] Upgrade (5/8 EXP)", COL_YELLOW)
+                pyxel.text(8, 204, "Click tower: select/upgrade | Right-click: remove", COL_YELLOW)
             else:
                 pyxel.text(8, 198, f"Next Tower Dir (WASD): {dir_label}", COL_YELLOW)
-                pyxel.text(8, 204, "Click empty cell to place (5 EXP)",   COL_YELLOW)
+                pyxel.text(8, 204, "Click empty cell to place (5 EXP)", COL_YELLOW)
 
             pyxel.text(8, 214, "Right-click tower to remove", COL_ORANGE)
-            pyxel.text(200, 198, "SPACE - Start Round!",      COL_GREEN)
-            pyxel.text(200, 208, "[M] - Main Menu",           COL_WHITE)
-            pyxel.text(200, 218, "[Q] - Quit",                COL_GRAY)
+            pyxel.text(200, 198, "SPACE - Start Round!", COL_GREEN)
+            pyxel.text(200, 208, "[M] - Main Menu", COL_WHITE)
+            pyxel.text(200, 218, "[Q] - Quit", COL_GRAY)
         
         elif state == GameState.PAUSED:
-            pyxel.rect(60, 90, 200, 60, COL_DARK)
-            pyxel.rectb(60, 90, 200, 60, COL_WHITE)
-            pyxel.text(110, 100, "PAUSED",              COL_YELLOW)
+            pyxel.rect(60, 90, 200, 70, COL_DARK)
+            pyxel.rectb(60, 90, 200, 70, COL_WHITE)
+            pyxel.text(110, 100, "PAUSED", COL_YELLOW)
             pyxel.text(75,  113, "[P] or click RESUME", COL_GREEN)
-            pyxel.text(75,  123, "[M] Main Menu",       COL_WHITE)
-            pyxel.text(75,  133, "[Q] Quit (No save)",  COL_GRAY)
+            pyxel.text(75,  123, "[M] Main Menu", COL_WHITE)
+            pyxel.text(75, 133, "[R] Restart from Round 1", COL_RED)
+            pyxel.text(75,  143, "[Q] Quit (No save)", COL_GRAY)
+
+    def draw_confirm_menu(self) -> None:
+        pyxel.rect(50, 95, 220, 50, COL_DARK)
+        pyxel.rectb(50, 95, 220, 50, COL_WHITE)
+        pyxel.text(80, 103, "Return to menu? Progress lost.", COL_YELLOW)
+        pyxel.text(90, 116, "[Y] Yes          [N] No", COL_WHITE)
 
     def draw_pause_button(self, is_paused: bool) -> None:
         btnx = SCREEN_WIDTH // 2 - 25
@@ -237,22 +290,22 @@ class ZumaTowerView:
         pyxel.rectb(60, 90, 200, 60, COL_WHITE)
         
         if user_hp <= 0:
-            pyxel.text(100, 105, "GAME OVER",               COL_RED)
+            pyxel.text(100, 105, "GAME OVER", COL_RED)
             pyxel.text(80,  117, f"Final EXP: {total_exp}", COL_WHITE)
         else:
-            pyxel.text(100, 105, "YOU WIN!",                COL_GREEN)
+            pyxel.text(100, 105, "YOU WIN!", COL_GREEN)
             pyxel.text(80,  117, f"Total EXP: {total_exp}", COL_WHITE)
             
-        pyxel.text(85, 125, "[M] Back to Main Menu",        COL_WHITE)
-        pyxel.text(85, 137, "[Q] Quit Game",                COL_GRAY)
+        pyxel.text(85, 125, "[M] Back to Main Menu", COL_WHITE)
+        pyxel.text(85, 137, "[Q] Quit Game", COL_GRAY)
+        pyxel.text(85, 149, "[R] Restart",  COL_RED)
 
-    def draw_tower_menu(self, row: int, col: int, is_upgraded: bool, exp: int) -> None:
+    def draw_tower_menu(self, row: int, col: int, upgrade_level: int, exp: int) -> None:
         x = col * CELL_SIZE
         y = row * CELL_SIZE
         box_w = 120
         box_h = 70
         
-        # position box above the tower, but it wont go off screen
         bx = x - 10
         by = y - box_h - 4
 
@@ -262,16 +315,20 @@ class ZumaTowerView:
         pyxel.rect(bx, by, box_w, box_h, COL_DARK)
         pyxel.rectb(bx, by, box_w, box_h, COL_WHITE)
         
-        # actual box content
-        pyxel.text(bx + 4, by + 4,  "TOWER OPTIONS",        COL_YELLOW)
+        pyxel.text(bx + 4, by + 4,  "TOWER OPTIONS", COL_YELLOW)
         pyxel.text(bx + 4, by + 16, "WASD - Set Direction", COL_WHITE)
-        if not is_upgraded:
-            col_u = COL_GREEN if exp >= 5 else COL_GRAY
-            pyxel.text(bx + 4, by + 26, "[U] Upgrade (5 EXP)", col_u)
+        
+        if upgrade_level == 0:
+            col_u = COL_GREEN if exp >= 10 else COL_GRAY
+            pyxel.text(bx + 4, by + 26, "[U] Upgrade to Lv2 (10 XP)", col_u)
+        elif upgrade_level == 1:
+            col_u = COL_GREEN if exp >= 20 else COL_GRAY
+            pyxel.text(bx + 4, by + 26, "[U] Upgrade to Lv3 (20 XP)", col_u)
         else:
-            pyxel.text(bx + 4, by + 26, "Already upgraded",      COL_GRAY)
+            pyxel.text(bx + 4, by + 26, "Max Level Reached", COL_GRAY)
+            
         pyxel.text(bx + 4, by + 44, "[R] Remove Tower (+5 EXP)", COL_RED)
-        pyxel.text(bx + 4, by + 54, "[X/Right Click] Close",     COL_GRAY)
+        pyxel.text(bx + 4, by + 54, "[X/Right Click] Close", COL_GRAY)
 
     def draw_place_confirm(self, row: int, col: int, exp: int) -> None:
         # same size and position logic with draw_tower_menu
@@ -293,9 +350,9 @@ class ZumaTowerView:
         can_afford = exp >= 5
         cost_col = COL_GREEN if can_afford else COL_RED
 
-        pyxel.text(bx + 4, by + 4,  "Place tower here?",   COL_YELLOW)
-        pyxel.text(bx + 4, by + 14, "Cost: 5 EXP",         cost_col)
+        pyxel.text(bx + 4, by + 4,  "Place tower here?", COL_YELLOW)
+        pyxel.text(bx + 4, by + 14, "Cost: 5 EXP", cost_col)
         if not can_afford:
-            pyxel.text(bx + 4, by + 24, "Not enough EXP!",  COL_RED)
+            pyxel.text(bx + 4, by + 24, "Not enough EXP!", COL_RED)
         else:
-            pyxel.text(bx + 4, by + 24, "[Y] Yes  [N] No",  COL_WHITE)
+            pyxel.text(bx + 4, by + 24, "[Y] Yes  [N] No", COL_WHITE)

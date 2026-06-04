@@ -31,13 +31,13 @@ if __name__ == '__main__':
     
     paths = [
         [  # path 1
-            (80.0,  40.0), 
-            (80.0, 160.0), 
-            (240.0, 160.0),
+            ZumaTowerView.cell_center(row=2, col=5), 
+            ZumaTowerView.cell_center(row=10, col=5), 
+            ZumaTowerView.cell_center(row=10, col=15),
         ],
         [  # path 2
-            (160.0, 120.0),
-            (160.0,  60.0),
+            ZumaTowerView.cell_center(row=7, col=10),
+            ZumaTowerView.cell_center(row=3, col=10),
         ],
     ]
     
@@ -45,8 +45,8 @@ if __name__ == '__main__':
     
     tunnels = {
         0: [
-            (72.0, 80.0, 16.0, 48.0),   
-            (160.0, 152.0, 64.0, 16.0) 
+            (float(5 * CELL_SIZE), float(5 * CELL_SIZE), float(1 * CELL_SIZE), float(3 * CELL_SIZE)),   
+            (float(10 * CELL_SIZE), float(10 * CELL_SIZE), float(4 * CELL_SIZE), float(1 * CELL_SIZE))
         ],
         1: []
     }

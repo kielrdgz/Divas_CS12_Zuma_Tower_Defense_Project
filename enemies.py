@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from data import Color, EnemyType, EnemyStatus
+from data import Color, EnemyType, EnemyStatus, CELL_SIZE
 
 class Enemy(ABC):
-    def __init__(self, hp: int, exp: int, color: Color, enemy_type: EnemyType):
+    def __init__(self, hp: int, exp: int, color: Color, enemy_type: EnemyType) -> None:
         self._hp: int = hp
         self._exp_pts: int = exp
         self._color: Color = color
         self._enemy_type: EnemyType = enemy_type
         self._status: EnemyStatus = EnemyStatus.PENDING
-        self._x: float = -20.0 # hardcoded ba talaga toh
+        self._x: float = -20.0
         self._y: float = 0.0
-        self._index: int = -1  # pos in model's enemy list
+        self._index: int = -1  
         self._path_idx: int = 0
-        self._waypoint_idx: int = 1  # index of next waypoint travelling to (0 is spawn point)
+        self._waypoint_idx: int = 1  
 
     @property
     @abstractmethod
@@ -32,15 +32,15 @@ class Enemy(ABC):
         return 30
     
     @property
-    def x(self):
+    def x(self) -> float:
         return self._x
     
     @property
-    def y(self):
+    def y(self) -> float:
         return self._y
     
     @property
-    def color(self):
+    def color(self) -> Color:
         return self._color
     
     @property
@@ -79,7 +79,6 @@ class Enemy(ABC):
     def set_waypoint_idx(self, idx: int) -> None:
         self._waypoint_idx = idx
  
-    # not yet used
     def hit(self, dmg: int) -> None:
         self._hp -= dmg
         if self._hp <= 0:
@@ -92,20 +91,19 @@ class Enemy(ABC):
         target_x, target_y = path[self._waypoint_idx]
         dx = target_x - self._x
         dy = target_y - self._y
-        distance = (dx**2 + dy**2)**0.5  # straight line distance from curr pos to waypoint
+        distance = (dx**2 + dy**2)**0.5  
         
-        if distance <= speed: # close enough to switch direction at waypoint
+        if distance <= speed: 
             self._x = target_x
             self._y = target_y
             self._waypoint_idx += 1
         else:
             self._x += (dx / distance) * speed
-            self._y += (dy / 
-                        distance) * speed
+            self._y += (dy / distance) * speed
 
 
 class NormalEnemy(Enemy):
-    def __init__(self, hp: int, exp: int, color: Color):
+    def __init__(self, hp: int, exp: int, color: Color) -> None:
         super().__init__(hp, exp, color, EnemyType.NRM)
 
     @property
@@ -120,9 +118,11 @@ class NormalEnemy(Enemy):
     def standard(cls, color: Color) -> NormalEnemy:
         return cls(1, 1, color)
 
+
 class ChameleonEnemy(Enemy):
-    def __init__(self, hp: int, exp: int, color: Color):
+    def __init__(self, hp: int, exp: int, color: Color, change_interval: int = 60) -> None:
         super().__init__(hp, exp, color, EnemyType.CHM)
+        self.change_interval: int = change_interval  # ticks between color changes
 
     @property
     def base_hp(self) -> int:
@@ -138,8 +138,10 @@ class ChameleonEnemy(Enemy):
 
 
 class RegeneratorEnemy(Enemy):
-    def __init__(self, hp: int, exp: int, color: Color):
-        super().__init__(hp, exp, color,  EnemyType.REG)
+    def __init__(self, hp: int, exp: int, color: Color, regen_every_cells: int = 3) -> None:
+        super().__init__(hp, exp, color, EnemyType.REG)
+        self.regen_every_cells: int = regen_every_cells  # heal every n cells walked
+        self._cells_walked: float = 0.0
 
     @property
     def base_hp(self) -> int:

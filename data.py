@@ -127,7 +127,7 @@ class SimpleGameOverCondition:
     
 class SimpleEnemyPopupPlan:
     def __init__(self, interval: int = FPS * 2) -> None:
-        self._interval = interval
+        self._interval: int = interval
         self._next_spawn_idx: int = 0
         self._tot_spawned: int = 0
  
@@ -139,7 +139,8 @@ class SimpleEnemyPopupPlan:
     def tot_spawned(self) -> int:
         return self._tot_spawned
  
-    def enemy_popup(self, curr_tick: int, enemies: list[Enemy], paths: list[list[tuple[float, float]]], rng: Random,) -> list[tuple[int, int]]:
+    def enemy_popup(
+        self, curr_tick: int, enemies: list[Enemy], paths: list[list[tuple[float, float]]], rng: Random) -> list[tuple[int, int]]:
         if self._next_spawn_idx >= len(enemies):
             return []
         if curr_tick % self._interval != 0:

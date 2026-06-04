@@ -7,8 +7,32 @@
     },
     {
         "name": "ANON",
+        "score": 257,
+        "round": 12,
+        "mode": "CAMPAIGN"
+    },
+    {
+        "name": "ANON",
+        "score": 11,
+        "round": 3,
+        "mode": "CAMPAIGN"
+    },
+    {
+        "name": "ANON",
         "score": 9,
         "round": 2,
+        "mode": "CAMPAIGN"
+    },
+    {
+        "name": "ANON",
+        "score": 7,
+        "round": 1,
+        "mode": "ENDLESS"
+    },
+    {
+        "name": "ANON",
+        "score": 5,
+        "round": 1,
         "mode": "CAMPAIGN"
     },
     {
