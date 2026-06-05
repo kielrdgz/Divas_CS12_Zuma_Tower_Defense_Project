@@ -24,20 +24,25 @@ class ZumaTowerController:
         return (btnx <= pyxel.mouse_x <= btnx + 50) and (btny <= pyxel.mouse_y <= btny + 13) # did cursor click pause/resume button
 
     def update(self) -> None:
-        # check this first; quitting logic
-        if pyxel.btnp(pyxel.KEY_Q):
-            if self._model.state not in (GameState.ONGOING, GameState.QUIT_CONFIRM, GameState.GAMEOVER):
-                self._model.set_state(GameState.QUIT_CONFIRM)
-                return None
-            
-        if self._model.state == GameState.QUIT_CONFIRM:
+        state = self._model.state
+        
+        # confirm reset dialog
+        if state == GameState.CONFIRM_RESET:
             if pyxel.btnp(pyxel.KEY_Y):
-                pyxel.quit()
+                self._model.reset_entire_model()
             elif pyxel.btnp(pyxel.KEY_N):
-                self._model.resume_from_quit_confirm()
+                self._model.cancel_confirm()
             return None
         
-        # check if game over    
+        # confirm menu dialog
+        if state == GameState.CONFIRM_MENU:
+            if pyxel.btnp(pyxel.KEY_Y):
+                self._model.reset_entire_model()
+            elif pyxel.btnp(pyxel.KEY_N):
+                self._model.cancel_confirm()
+            return None
+        
+        # game over screen
         if self._model.is_game_over:
             return None
         
@@ -96,18 +101,65 @@ class ZumaTowerController:
         elif self._model.state == GameState.GAMEOVER:
             if pyxel.btnp(pyxel.KEY_M):
                 self._model.reset_entire_model()
+            elif pyxel.btnp(pyxel.KEY_R):
+                self._model.reset_entire_model()
             elif pyxel.btnp(pyxel.KEY_Q):
                 pyxel.quit()
             return None
-                
-        elif self._model.state == GameState.ROUND_PENDING:
-            # navigation
-            if pyxel.btnp(pyxel.KEY_Q):  # quit
-                self._model.reset_entire_model()
+        
+        # menu
+        if state == GameState.MENU:
+            if pyxel.btnp(pyxel.KEY_C):
+                self._model.set_game_mode(GameMode.CAMPAIGN)
+                self._model.set_state(GameState.ROUND_PENDING)
+            elif pyxel.btnp(pyxel.KEY_E):
+                self._model.set_game_mode(GameMode.ENDLESS)
+                self._model.set_state(GameState.ROUND_PENDING)
+            elif pyxel.btnp(pyxel.KEY_L):
+                self._model.set_state(GameState.LEADERBOARD)
+            elif pyxel.btnp(pyxel.KEY_Q):
+                pyxel.quit()
+            return None
+        
+        # leaderboard
+        if state == GameState.LEADERBOARD:
+            if pyxel.btnp(pyxel.KEY_M):
+                self._model.set_state(GameState.MENU)
+            return None
+        
+        # paused
+        if state == GameState.PAUSED:
+            if pyxel.btnp(pyxel.KEY_P) or pyxel.btnp(pyxel.KEY_SPACE):
+                self._model.resume()
+            elif pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) and self._is_pause_clicked():
+                self._model.resume()
+            elif pyxel.btnp(pyxel.KEY_M):
+                self._model.open_confirm_menu()
+            elif pyxel.btnp(pyxel.KEY_R):
+                self._model.open_confirm_reset()
+            elif pyxel.btnp(pyxel.KEY_Q):
+                self._model.open_confirm_reset()
+            return None
+
+        # pause button / p key from ongoing
+        if pyxel.btnp(pyxel.KEY_P):
+            if state == GameState.ONGOING:
+                self._model.set_state(GameState.PAUSED)
+                return None
+ 
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) and self._is_pause_clicked():
+            if state == GameState.ONGOING:
+                self._model.set_state(GameState.PAUSED)
+                return None
+            
+        # ongoing
+        if state == GameState.ONGOING:
+            if pyxel.btnp(pyxel.KEY_Q):
+                self._model.open_confirm_reset()
                 return None
 
             if pyxel.btnp(pyxel.KEY_M):
-                self._model.set_state(GameState.MENU)
+                self._model.open_confirm_menu()
                 return None
         
             # start new round
@@ -177,7 +229,6 @@ class ZumaTowerController:
                 elif pyxel.btnp(pyxel.KEY_A): self._model.change_spec_tower_dir(self._selected_tower[0], self._selected_tower[1], Direction.LEFT)
                 elif pyxel.btnp(pyxel.KEY_D): self._model.change_spec_tower_dir(self._selected_tower[0], self._selected_tower[1], Direction.RIGHT)
             else:
-                # if no tower menu open, wasd sets dir for the next placement of tower
                 if pyxel.btnp(pyxel.KEY_W): self._model.set_pending_direction(Direction.UP)
                 elif pyxel.btnp(pyxel.KEY_S): self._model.set_pending_direction(Direction.DOWN)
                 elif pyxel.btnp(pyxel.KEY_A): self._model.set_pending_direction(Direction.LEFT)
@@ -239,6 +290,12 @@ class ZumaTowerController:
                 pyxel.rectb(box_x, box_y, 60, 18, pyxel.COLOR_WHITE)
                 pyxel.text(box_x + 4, box_y + 3, "Build? Y/N", pyxel.COLOR_WHITE)
 
+        if self._model.state == GameState.CONFIRM_RESET:
+            self._view.draw_confirm_reset()
+
+        if self._model.state == GameState.CONFIRM_MENU:
+            self._view.draw_confirm_menu()
+            
         if self._model.state == GameState.QUIT_CONFIRM:
             self._view.draw_quit_confirm()
 
