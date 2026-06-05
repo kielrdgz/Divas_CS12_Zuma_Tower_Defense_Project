@@ -13,6 +13,18 @@
     },
     {
         "name": "ANON",
+        "score": 55,
+        "round": 1,
+        "mode": "CAMPAIGN"
+    },
+    {
+        "name": "ANON",
+        "score": 18,
+        "round": 4,
+        "mode": "CAMPAIGN"
+    },
+    {
+        "name": "ANON",
         "score": 11,
         "round": 3,
         "mode": "CAMPAIGN"

@@ -9,13 +9,18 @@ COOLDOWN = 30
 class Tower:
     COST: int = 5
     UPGRADE_COST: int = 10
+    upgrade_level = 0
     
-    def __init__(self, x: float, y: float, direction: Direction) -> None:
-        self._x: float = x
-        self._y: float = y
+    def __init__(self, r: int, c: int, direction: Direction) -> None:
+        self.r: int = r
+        self.c: int = c
         self._direction: Direction = direction
         
-        # Base state: fires 1 standard bullet per second
+        # Calculate pixel coordinates dynamically based on grid cells
+        # This keeps bullet spawning logic fully intact!
+        self._x: float = (c * 16) + 8  # Assuming CELL_SIZE = 16
+        self._y: float = (r * 16) + 8
+        
         self._cooldown_max: int = FPS
         self._current_cooldown: int = 0
         
@@ -63,6 +68,7 @@ class Tower:
 class UpgradedTower(Tower):
     COST: int = 10
     UPGRADE_COST: int = 20
+    upgrade_level = 1
     
     def __init__(self, x: float, y: float, direction: Direction) -> None:
         super().__init__(x, y, direction)
@@ -108,6 +114,7 @@ class UpgradedTower(Tower):
 class UpgradedTower2(UpgradedTower):
     COST: int = 20
     UPGRADE_COST: int = 0  # max reached
+    upgrade_level = 2
     
     def __init__(self, x: float, y: float, direction: Direction) -> None:
         super().__init__(x, y, direction)
