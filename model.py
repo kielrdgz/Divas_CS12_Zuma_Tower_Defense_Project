@@ -177,12 +177,30 @@ class ZumaTowerModel:
     def game_mode(self) -> GameMode:
         return self._game_mode
     
+    @property
+    def leaderboard_records(self) -> list[dict[str, Any]]:
+        return self.load_raw_leaderboard()
+    
+    @property
+    def confirm_prev_state(self) -> GameState:
+        return self._confirm_prev_state
+    
     # helpers
+    
+    def open_confirm_reset(self) -> None:
+        self._confirm_prev_state = self._state
+        self._state = GameState.CONFIRM_RESET
+        
+    def open_confirm_menu(self) -> None:
+        self._confirm_prev_state = self._state
+        self._state = GameState.CONFIRM_MENU
+        
+    def cancel_confirm(self) -> None:
+        self._state = self._confirm_prev_state
 
     def set_state(self, state: GameState) -> None:
-        if state in (GameState.PAUSED, GameState.QUIT_CONFIRM):
-            if self._state not in (GameState.PAUSED, GameState.QUIT_CONFIRM):
-                self._prev_state = self._state
+        if self._state != GameState.PAUSED and state == GameState.PAUSED:
+            self._prev_state = self._state
         self._state = state
 
     def resume(self) -> None:
@@ -497,22 +515,16 @@ class ZumaTowerModel:
         tower_y = (row * CELL_SIZE) + (CELL_SIZE / 2)
 
         for i, tower in enumerate(self._active_towers):
-            if tower.x == tower_x and tower.y == tower_y:
-                curr_dir = self._tower_directions.get((row, col), tower.direction)
-                
-                if tower.upgrade_level == 0:
-                    if self._total_exp < UpgradedTower.COST:
-                        return False
-                    self._total_exp -= UpgradedTower.COST
-                    self._active_towers[i] = UpgradedTower(tower_x, tower_y, curr_dir)
-                    self._grid[row][col] = CellType.UPGRADED_TOWER
-                    return True
-                elif tower.upgrade_level == 1:
-                    if self._total_exp < UpgradedTower2.COST:
-                        return False
-                    self._total_exp -= UpgradedTower2.COST
-                    self._active_towers[i] = UpgradedTower2(tower_x, tower_y, curr_dir)
-                    return True
+            if abs(tower.x - tower_x) < 1.0 and abs(tower.y - tower_y) < 1.0:
+                if tower.is_upgraded:
+                    return False
+                if self._total_exp < UpgradedTower._cost:
+                    return False
+                self._total_exp -= UpgradedTower._cost
+                curr_dir: Direction = self._tower_directions.get((row, col), tower.direction)
+                self._active_towers[i] = UpgradedTower(tower_x, tower_y, curr_dir) # replace tower with upgraded tower with same dir
+                self._grid[row][col] = CellType.UPGRADED_TOWER  # new cell type
+                return True
 
         return False
     

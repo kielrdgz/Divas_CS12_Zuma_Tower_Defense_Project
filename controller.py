@@ -24,177 +24,167 @@ class ZumaTowerController:
         return (btnx <= pyxel.mouse_x <= btnx + 50) and (btny <= pyxel.mouse_y <= btny + 13) # did cursor click pause/resume button
 
     def update(self) -> None:
-        # check this first; quitting logic
-        if pyxel.btnp(pyxel.KEY_Q):
-            if self._model.state not in (GameState.ONGOING, GameState.QUIT_CONFIRM, GameState.GAMEOVER):
-                self._model.set_state(GameState.QUIT_CONFIRM)
-                return None
-            
-        if self._model.state == GameState.QUIT_CONFIRM:
+        state = self._model.state
+        
+        # confirm reset dialog
+        if state == GameState.CONFIRM_RESET:
             if pyxel.btnp(pyxel.KEY_Y):
-                pyxel.quit()
+                self._model.reset_entire_model()
             elif pyxel.btnp(pyxel.KEY_N):
-                self._model.resume_from_quit_confirm()
+                self._model.cancel_confirm()
             return None
         
-        # check if game over    
+        # confirm menu dialog
+        if state == GameState.CONFIRM_MENU:
+            if pyxel.btnp(pyxel.KEY_Y):
+                self._model.reset_entire_model()
+            elif pyxel.btnp(pyxel.KEY_N):
+                self._model.cancel_confirm()
+            return None
+        
+        # game over screen
         if self._model.is_game_over:
-            return None
-        
-        # pause
-        if pyxel.btnp(pyxel.KEY_P):
-            if self._model.state == GameState.ONGOING:
-                self._model.set_state(GameState.PAUSED)
-            elif self._model.state == GameState.PAUSED:
-                self._model.resume()
-
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) and self._is_pause_clicked():
-            if self._model.state == GameState.ONGOING:
-                self._model.set_state(GameState.PAUSED)
-                return None
-            elif self._model.state == GameState.PAUSED:
-                self._model.resume()
-                return None
-
-        # state
-        if self._model.state == GameState.MENU:
-            if pyxel.btnp(pyxel.KEY_C):
-                self._model.set_game_mode(GameMode.CAMPAIGN)
-                self._model.start_round_one()
-                # wait ccheck pa kung kailangan pa to pero parang inde na
-                # self._model.set_state(GameState.ROUND_PENDING)
-                # self._model.bullets.clear()
-                # self._model.enemies.clear()
-            elif pyxel.btnp(pyxel.KEY_E):
-                self._model.set_game_mode(GameMode.ENDLESS)
-                self._model.start_round_one()
-            elif pyxel.btnp(pyxel.KEY_L):
-                self._model.set_state(GameState.LEADERBOARD)
-            return None
-
-        elif self._model.state == GameState.LEADERBOARD:
             if pyxel.btnp(pyxel.KEY_M):
-                self._model.set_state(GameState.MENU)
-            return None
-
-        elif self._model.state == GameState.PAUSED:
-            if pyxel.btnp(pyxel.KEY_P) or pyxel.btnp(pyxel.KEY_SPACE): # continues
-                self._model.resume()
-            elif pyxel.btnp(pyxel.KEY_M): # resets and goes to menu
-                self._model.reset_entire_model() 
-            return None
- 
-        elif self._model.state == GameState.ONGOING:
-            kills_before = self._model.tot_killed
-            self._model.update()
-            
-            if self._model.tot_killed > kills_before: # sfx for killing enemies but should probably be moved to view
-                try:
-                    pyxel.play(3, 0) 
-                except Exception:
-                    pass
-
-            if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT): 
-                self._model.shoot(float(pyxel.mouse_x), float(pyxel.mouse_y))
-            
-            # active = any(e.status == 1 for e in self._model.enemies)
-            # if not active and len(self._model.enemies) > 0:
-            #     self._model.bullets.clear()
-            #     self._model.enemies.clear()
-            #     self._model.set_state(GameState.ROUND_PENDING)
-
-        elif self._model.state == GameState.GAMEOVER:
-            if pyxel.btnp(pyxel.KEY_M):
+                self._model.reset_entire_model()
+            elif pyxel.btnp(pyxel.KEY_R):
                 self._model.reset_entire_model()
             elif pyxel.btnp(pyxel.KEY_Q):
                 pyxel.quit()
             return None
-                
-        elif self._model.state == GameState.ROUND_PENDING:
-            # navigation
-            if pyxel.btnp(pyxel.KEY_Q):  # quit
-                self._model.reset_entire_model()
+        
+        # menu
+        if state == GameState.MENU:
+            if pyxel.btnp(pyxel.KEY_C):
+                self._model.set_game_mode(GameMode.CAMPAIGN)
+                self._model.set_state(GameState.ROUND_PENDING)
+            elif pyxel.btnp(pyxel.KEY_E):
+                self._model.set_game_mode(GameMode.ENDLESS)
+                self._model.set_state(GameState.ROUND_PENDING)
+            elif pyxel.btnp(pyxel.KEY_L):
+                self._model.set_state(GameState.LEADERBOARD)
+            elif pyxel.btnp(pyxel.KEY_Q):
+                pyxel.quit()
+            return None
+        
+        # leaderboard
+        if state == GameState.LEADERBOARD:
+            if pyxel.btnp(pyxel.KEY_M):
+                self._model.set_state(GameState.MENU)
+            return None
+        
+        # paused
+        if state == GameState.PAUSED:
+            if pyxel.btnp(pyxel.KEY_P) or pyxel.btnp(pyxel.KEY_SPACE):
+                self._model.resume()
+            elif pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) and self._is_pause_clicked():
+                self._model.resume()
+            elif pyxel.btnp(pyxel.KEY_M):
+                self._model.open_confirm_menu()
+            elif pyxel.btnp(pyxel.KEY_R):
+                self._model.open_confirm_reset()
+            elif pyxel.btnp(pyxel.KEY_Q):
+                self._model.open_confirm_reset()
+            return None
+
+        # pause button / p key from ongoing
+        if pyxel.btnp(pyxel.KEY_P):
+            if state == GameState.ONGOING:
+                self._model.set_state(GameState.PAUSED)
+                return None
+ 
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) and self._is_pause_clicked():
+            if state == GameState.ONGOING:
+                self._model.set_state(GameState.PAUSED)
+                return None
+            
+        # ongoing
+        if state == GameState.ONGOING:
+            if pyxel.btnp(pyxel.KEY_Q):
+                self._model.open_confirm_reset()
                 return None
 
             if pyxel.btnp(pyxel.KEY_M):
-                self._model.set_state(GameState.MENU)
+                self._model.open_confirm_menu()
                 return None
-        
-            # if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) and self._is_pause_clicked() or pyxel.btnp(pyxel.KEY_P):
-            #     return None
-
-            # start new round
-            if pyxel.btnp(pyxel.KEY_SPACE): # resets
-                self._model.start_next_round()
-                self._selected_tower = None
-                self._tower_menu_open = False
-                self._pending_tower_cell = None
-                return None
-
-            # grid interaction
-            col = pyxel.mouse_x // CELL_SIZE
-            row = pyxel.mouse_y // CELL_SIZE
             
-            if 0 <= row < self._model.rows and 0 <= col < self._model.cols:
-                
-                # remove tower (right click)
-                if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
-                    if self._model.grid[row][col] in (CellType.TOWER, CellType.UPGRADED_TOWER):
-                        self._model.grid[row][col] = CellType.EMPTY # clear cell
-                        self._model._total_exp += 5                 # refund some EXP points
-                        if (row, col) in self._model._tower_directions:
-                            del self._model._tower_directions[(row, col)]
-                        if self._selected_tower == (row, col):
-                            self._selected_tower = None
-                
-                # select, place, upgrade (left click)
-                elif pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
-                    if self._model.grid[row][col] in (CellType.TOWER, CellType.UPGRADED_TOWER):
-                        # select tower to open its menu
-                        if self._selected_tower == (row, col):
-                            self._tower_menu_open = True  # second click on same tower opens menu
-                        else:
-                            self._selected_tower = (row, col)  # first click just selects
-                            self._tower_menu_open = False
-                    elif self._model.grid[row][col] == CellType.EMPTY:
-                        # only add a tower if the cell is empty 
-                        self._selected_tower = None
-                        self._tower_menu_open = False
-                        self._pending_tower_cell = (row, col) # ask for confirm first before placing
-
-            # selected a tower to place; for confirmation
-            if self._pending_tower_cell:
-                if pyxel.btnp(pyxel.KEY_Y):
-                    row_p, col_p = self._pending_tower_cell
-                    current_direction = self._model.pending_direction
-                    self._model.try_place_tower(row_p, col_p)
-                    if self._model.grid[row_p][col_p] == CellType.TOWER:
-                        self._model._tower_directions[(row_p, col_p)] = current_direction
-                        self._selected_tower = (row_p, col_p)
-                    self._pending_tower_cell = None
-                elif pyxel.btnp(pyxel.KEY_N) or pyxel.btnp(pyxel.KEY_X):
-                    self._pending_tower_cell = None
-
-            # tower menu is open
-            if self._tower_menu_open and self._selected_tower:
-                if pyxel.btnp(pyxel.KEY_U):  # upgrade
-                    self._model.try_upgrade_tower(self._selected_tower[0], self._selected_tower[1])
-                    self._tower_menu_open = False
-                elif pyxel.btnp(pyxel.KEY_R):
-                    self._model.try_remove_tower(self._selected_tower[0], self._selected_tower[1])
-                    self._tower_menu_open = False
-                    self._selected_tower = None
-                elif pyxel.btnp(pyxel.KEY_X):  # close without doing anything
-                    self._tower_menu_open = False 
-
-            if self._tower_menu_open and self._selected_tower and self._model.grid[self._selected_tower[0]][self._selected_tower[1]] in (CellType.TOWER, CellType.UPGRADED_TOWER):
-                # can only change tower's dir when menu is open
+            kills_before = self._model.tot_killed
+            self._model.update()
+            if self._model.tot_killed > kills_before:
+                try:
+                    pyxel.play(3, 0)
+                except Exception:
+                    pass
+ 
+            if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT) and not self._is_pause_clicked():
+                self._model.shoot(float(pyxel.mouse_x), float(pyxel.mouse_y))
+ 
+            if self._selected_tower and self._model.grid[self._selected_tower[0]][self._selected_tower[1]] in (CellType.TOWER, CellType.UPGRADED_TOWER):
                 if pyxel.btnp(pyxel.KEY_W): self._model._tower_directions[self._selected_tower] = Direction.UP
                 elif pyxel.btnp(pyxel.KEY_S): self._model._tower_directions[self._selected_tower] = Direction.DOWN
                 elif pyxel.btnp(pyxel.KEY_A): self._model._tower_directions[self._selected_tower] = Direction.LEFT
                 elif pyxel.btnp(pyxel.KEY_D): self._model._tower_directions[self._selected_tower] = Direction.RIGHT
             else:
-                # if no tower menu open, wasd sets dir for the next placement of tower
+                if pyxel.btnp(pyxel.KEY_W): self._model.set_all_towers_direction(Direction.UP)
+                elif pyxel.btnp(pyxel.KEY_S): self._model.set_all_towers_direction(Direction.DOWN)
+                elif pyxel.btnp(pyxel.KEY_A): self._model.set_all_towers_direction(Direction.LEFT)
+                elif pyxel.btnp(pyxel.KEY_D): self._model.set_all_towers_direction(Direction.RIGHT)
+            return None
+        
+        # gameover
+        if state == GameState.GAMEOVER:
+            if pyxel.btnp(pyxel.KEY_M):
+                self._model.reset_entire_model()
+            elif pyxel.btnp(pyxel.KEY_R):
+                self._model.reset_entire_model()
+            elif pyxel.btnp(pyxel.KEY_Q):
+                pyxel.quit()
+            return None
+        
+        # round pending
+        if state == GameState.ROUND_PENDING:
+            if pyxel.btnp(pyxel.KEY_Q):
+                self._model.open_confirm_reset()
+                return None
+ 
+            if pyxel.btnp(pyxel.KEY_R):
+                self._model.open_confirm_reset()
+                return None
+ 
+            if pyxel.btnp(pyxel.KEY_M):
+                self._model.open_confirm_menu()
+                return None
+ 
+            if pyxel.btnp(pyxel.KEY_SPACE):
+                self._model.start_next_round()
+                return None
+ 
+            col = pyxel.mouse_x // CELL_SIZE
+            row = pyxel.mouse_y // CELL_SIZE
+ 
+            if 0 <= row < self._model.rows and 0 <= col < self._model.cols:
+                if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
+                    if self._model.grid[row][col] in (CellType.TOWER, CellType.UPGRADED_TOWER):
+                        self._model.try_remove_tower(row, col)
+                        if self._selected_tower == (row, col):
+                            self._selected_tower = None
+ 
+                elif pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+                    if self._model.grid[row][col] in (CellType.TOWER, CellType.UPGRADED_TOWER):
+                        self._selected_tower = (row, col)
+                        self._model.try_upgrade_tower(row, col)
+                    elif self._model.grid[row][col] == CellType.EMPTY:
+                        current_direction = self._model.pending_direction
+                        self._model.try_place_tower(row, col)
+                        if self._model.grid[row][col] == CellType.TOWER:
+                            self._model._tower_directions[(row, col)] = current_direction
+                            self._selected_tower = (row, col)
+ 
+            if self._selected_tower and self._model.grid[self._selected_tower[0]][self._selected_tower[1]] in (CellType.TOWER, CellType.UPGRADED_TOWER):
+                if pyxel.btnp(pyxel.KEY_W): self._model._tower_directions[self._selected_tower] = Direction.UP
+                elif pyxel.btnp(pyxel.KEY_S): self._model._tower_directions[self._selected_tower] = Direction.DOWN
+                elif pyxel.btnp(pyxel.KEY_A): self._model._tower_directions[self._selected_tower] = Direction.LEFT
+                elif pyxel.btnp(pyxel.KEY_D): self._model._tower_directions[self._selected_tower] = Direction.RIGHT
+            else:
                 if pyxel.btnp(pyxel.KEY_W): self._model.set_pending_direction(Direction.UP)
                 elif pyxel.btnp(pyxel.KEY_S): self._model.set_pending_direction(Direction.DOWN)
                 elif pyxel.btnp(pyxel.KEY_A): self._model.set_pending_direction(Direction.LEFT)
@@ -234,6 +224,12 @@ class ZumaTowerController:
                 r, c = self._pending_tower_cell
                 self._view.draw_place_confirm(r, c, self._model.total_exp)
 
+        if self._model.state == GameState.CONFIRM_RESET:
+            self._view.draw_confirm_reset()
+
+        if self._model.state == GameState.CONFIRM_MENU:
+            self._view.draw_confirm_menu()
+            
         if self._model.state == GameState.QUIT_CONFIRM:
             self._view.draw_quit_confirm()
 
