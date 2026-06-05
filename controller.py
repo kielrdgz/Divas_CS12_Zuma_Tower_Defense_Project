@@ -235,5 +235,40 @@ class ZumaTowerController:
 
         if self._model.is_game_over:
             self._view.draw_game_over(self._model.total_exp, self._model.user_hp)
-
+            
+    def draw_tower_menu(self, row: int, col: int, upgrade_level: int, exp: int) -> None:
+        x = col * CELL_SIZE
+        y = row * CELL_SIZE
+        box_w = 120
+        box_h = 70
         
+        bx = x - 10
+        by = y - box_h - 4
+        
+        pyxel.rect(bx, by, box_w, box_h, COL_DARK)
+        pyxel.rectb(bx, by, box_w, box_h, COL_WHITE)
+        pyxel.text(bx + 4, by + 4,  "TOWER OPTIONS", COL_YELLOW)
+        pyxel.text(bx + 4, by + 16, "WASD - Set Direction", COL_WHITE)
+        
+        if upgrade_level == 0:
+            col_u = COL_GREEN if exp >= 10 else COL_GRAY
+            pyxel.text(bx + 4, by + 26, "[U] Upgrade to Lv2 (10 XP)", col_u)
+        elif upgrade_level == 1:
+            col_u = COL_GREEN if exp >= 20 else COL_GRAY
+            pyxel.text(bx + 4, by + 26, "[U] Upgrade to Lv3 (20 XP)", col_u)
+        else:
+            pyxel.text(bx + 4, by + 26, "Max Level Reached", COL_GRAY)
+        
+        pyxel.text(bx + 4, by + 44, "[R] Remove Tower (+5 EXP)", COL_RED)
+        pyxel.text(bx + 4, by + 54, "[X/Right Click] Close", COL_GRAY)
+        
+    def draw_place_confirm(self, row: int, col: int, exp: int) -> None:
+        can_afford = exp >= 5
+        cost_col = COL_GREEN if can_afford else COL_RED
+        pyxel.text(bx + 4, by + 4,  "Place tower here?", COL_YELLOW)
+        pyxel.text(bx + 4, by + 14, "Cost: 5 EXP", cost_col)
+            
+        if not can_afford:
+            pyxel.text(bx + 4, by + 24, "Not enough EXP!", COL_RED)
+        else:
+            pyxel.text(bx + 4, by + 24, "[Y] Yes  [N] No", COL_WHITE)
