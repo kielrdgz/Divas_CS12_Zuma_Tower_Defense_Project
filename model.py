@@ -14,11 +14,11 @@ COLORS: list[Color] = [
     Color.GREEN, Color.BLUE, Color.VIOLET
     ]
 
-ENEMY_SPEED: float = (CELL_SIZE / (2 * FPS)) * 3.0 # change the 3.0 to make enemy speed faster/slower
+ENEMY_SPEED: float = (CELL_SIZE / (2 * FPS)) * 1.0 # change the 1.0 to make enemy speed faster/slower
 SPAWN_INTERVAL: int = FPS * 2 # new enemy every two secs
 
 class ZumaTowerModel:
-    def __init__(self, enemies: list[Enemy], user_hp: int, max_rounds: int, game_over_condition: GameOverCondition, popupplan: PopupPlan, rng: Random, paths: list[list[tuple[float, float]]], tunnels: list[tuple[float, float, float, float]] = []):        
+    def __init__(self, enemies: list[Enemy], user_hp: int, max_rounds: int, game_over_condition: GameOverCondition, popupplan: PopupPlan, rng: Random, paths: list[list[tuple[float, float]]], tunnels: list[tuple[float, float, float, float]] = [], settings_enemies: int = 8):        
         self._max_rounds: int = max_rounds
         self._curr_round: int = 0
         self._user_hp = user_hp
@@ -71,7 +71,17 @@ class ZumaTowerModel:
         self._nickname: str = ""
         self._leaderboard_file: str = "leaderboard.json"
         self._pending_direction: Direction = Direction.UP
-        self._settings_enemies: int = len(enemies) if enemies else 8
+        self._settings_enemies: int = settings_enemies
+
+        # for endless difficulty increasing
+        self._curr_speed_multiplier: float = 1.0
+
+        # for shop
+        self._coins: int = 670 # change when done testing
+        self._inventory: dict[PowerupType, int] = {p: 0 for p in PowerupType}
+        self._active_powerup: PowerupType | None = None
+        self._powerup_ticks_left: int = 0
+        self._star_shoot_cooldown: int = 0
 
         self._mark_path_cells()
         self._load_generation_round()
@@ -186,6 +196,37 @@ class ZumaTowerModel:
     def confirm_prev_state(self) -> GameState:
         return self._confirm_prev_state
     
+    @property
+    def coins(self) -> int:
+        return self._coins
+
+    @property
+    def inventory(self) -> dict[PowerupType, int]:
+        return self._inventory
+
+    @property
+    def active_powerup(self) -> PowerupType | None:
+        return self._active_powerup
+
+    @property
+    def powerup_ticks_left(self) -> int:
+        return self._powerup_ticks_left
+    
+    @property
+    def is_high_score(self) -> bool:
+        records = self.load_raw_leaderboard()
+        if not records:
+            return True
+        top_score = int(records[0].get("score", 0))
+        return self._total_exp > top_score
+    
+    @property
+    def tower_levels(self) -> dict[tuple[int, int], int]:
+        result = {}
+        for t in self._active_towers:
+            result[(t.r, t.c)] = t.upgrade_level
+        return result
+    
     # helpers
     
     def open_confirm_reset(self) -> None:
@@ -227,29 +268,23 @@ class ZumaTowerModel:
         self.reset_game()
 
     def _load_generation_round(self) -> None:
-        # self._tot_spawned = 0
-        # self._next_spawn_idx = 0
-
         self._tot_killed = 0
         self._moving_bullets = []
         self._enemy_popup.reset()
         self._curr_tick = 0
+        self._shoot_cooldown = 0
 
         r = self._curr_round
-        avail_colors = [ Color.RED, Color.ORANGE, Color.YELLOW, Color.GREEN, Color.BLUE, Color.VIOLET ]
+        avail_colors = [Color.RED, Color.ORANGE, Color.YELLOW, Color.GREEN, Color.BLUE, Color.VIOLET]
 
         if self._game_mode == GameMode.CAMPAIGN:
-            enemies = 6 + (r * 2)
+            enemies = self._settings_enemies
             hp = 1 + (r // 4)
-            regen_chance = min(0.0 + (r - 4) * 0.06, 0.4) if r > 4 else 0.0
-            chm_chance = min(0.0 + (r - 2) * 0.05, 0.3) if r > 2 else 0.0
-        else:
-            enemies = 8 + (r * 3)
+        else: # endless mode
+            enemies = self._settings_enemies + ((r - 1) * 3)
             hp = 1 + (r // 2)
-            speed = 1.0 + r * 0.7
-            regen_chance = min(0.0 + (r - 2) * 0.08, 0.55) if r > 2 else 0.0
-            chm_chance = min(0.0 + r* 0.06, 0.4)
-        
+            self._curr_speed_multiplier = 1.0 + (r - 1) * 0.1
+            
         chm_interval = max(20, 90 - r * 4)
         regen_cells = max(1, 5 - r // 2)
 
@@ -258,12 +293,21 @@ class ZumaTowerModel:
         for idx in range(enemies):
             color = self.rng.choice(avail_colors)
             rand = self.rng.random()
-            if r > 4 and rand < 0.35:
+
+            if self._game_mode == GameMode.CAMPAIGN:
+                regen_chance = min((r - 4) * 0.06, 0.4) if r > 4 else 0.0
+                chm_chance   = min((r - 2) * 0.05, 0.3) if r > 2 else 0.0
+            else:  # endless - round 1 is all normal enemies, chances of other types of enemies increases from round 2
+                regen_chance = min((r - 1) * 0.08, 0.55) if r > 1 else 0.0
+                chm_chance   = min((r - 1) * 0.06, 0.40) if r > 1 else 0.0
+
+            if rand < regen_chance:
                 enemy = RegeneratorEnemy(hp=hp + 1, exp=3, color=color, regen_every_cells=regen_cells)
-            elif r > 2 and rand < 0.30:
+            elif rand < regen_chance + chm_chance:
                 enemy = ChameleonEnemy(hp=hp, exp=2, color=color, change_interval=chm_interval)
             else:
                 enemy = NormalEnemy(hp=hp, exp=1, color=color)
+
             enemy.set_index(idx)
             self._enemies.append(enemy)
         
@@ -299,7 +343,7 @@ class ZumaTowerModel:
                     continue
                 if e.x <= -CELL_SIZE:
                     continue
-                if bullet.color != e.color:
+                if bullet.color != e.color and self._active_powerup != PowerupType.MEGA_BULLET:
                     continue
 
                 in_tunnel = False
@@ -318,12 +362,53 @@ class ZumaTowerModel:
                     self._tot_killed += 1          # increment kill count
                     self._total_exp += e.exp_pts   # award exp points
                     bullets_to_remove.add(bi)      # mark bullet for removal
+                    if self._active_powerup == PowerupType.MEGA_BULLET and bullet._from_shooter:  # used powerup
+                        same_path = sorted(
+                            [x for x in self._enemies if x.status == EnemyStatus.ALIVE and x.path_idx == e.path_idx],
+                            key=lambda x: (x.waypoint_idx, x.x)
+                        )
+                        for se in same_path:
+                            se.set_status(EnemyStatus.DEAD)
+                            self._tot_killed += 1
+                            self._total_exp += se.exp_pts
+                        self._active_powerup = None
+                        self._powerup_ticks_left = 0
                     break # stop checking other enemies for this bullet
 
         self._moving_bullets = [
             b for i, b in enumerate(self._moving_bullets)
             if i not in bullets_to_remove
         ] # bullet list without the bullets that hit an enemy
+    
+    def _mark_path_cells(self) -> None:
+        for path in self._paths:
+            for i in range(len(path) - 1):
+                x1, y1 = path[i]
+                x2, y2 = path[i + 1]
+                
+                steps = max(abs(int(x2) - int(x1)), abs(int(y2) - int(y1))) // CELL_SIZE + 1
+                for s in range(steps + 1):
+                    t = s / steps if steps > 0 else 0
+                    ix = x1 + (x2 - x1) * t
+                    iy = y1 + (y2 - y1) * t
+                    col = int(ix // CELL_SIZE)
+                    row = int(iy // CELL_SIZE)
+                    if 0 <= row < self._rows and 0 <= col < self._cols:
+                        self._grid[row][col] = CellType.PATH
+                        
+        tunnel_source = self._tunnels.values() if isinstance(self._tunnels, dict) else [self._tunnels]
+        for tunnel_list in tunnel_source:
+            if not isinstance(tunnel_list, list):
+                continue
+            for tx, ty, tw, th in tunnel_list:
+                c0 = int(tx // CELL_SIZE)
+                r0 = int(ty // CELL_SIZE)
+                c1 = int((tx + tw) // CELL_SIZE)
+                r1 = int((ty + th) // CELL_SIZE)
+                for r in range(r0, r1 + 1):
+                    for c in range(c0, c1 + 1):
+                        if 0 <= r < self._rows and 0 <= c < self._cols:
+                            self._grid[r][c] = CellType.TUNNEL
         
     # functions
     
@@ -332,21 +417,28 @@ class ZumaTowerModel:
             return
 
         self._curr_tick += 1
-        
+        # decrement timed powerups
+        if self._active_powerup in (PowerupType.STAR, PowerupType.TOWER_FRENZY):
+            if self._powerup_ticks_left > 0:
+                self._powerup_ticks_left -= 1
+            else:
+                self._active_powerup = None
+
+        # star: auto-shoot toward nearest alive enemy
+        if self._active_powerup == PowerupType.STAR:
+            if self._star_shoot_cooldown > 0:
+                self._star_shoot_cooldown -= 1
+            else:
+                targets = [e for e in self._enemies if e.status == EnemyStatus.ALIVE and e.x >= 0]
+                if targets:
+                    t = min(targets, key=lambda e: ((e.x - self._shooter_x)**2 + (e.y - self._shooter_y)**2)**0.5)
+                    self.shoot(t.x, t.y)
+                    self._shoot_cooldown = 0
+                    self._star_shoot_cooldown = self._frames_per_shot
+                
         if self._shoot_cooldown > 0:
             self._shoot_cooldown -= 1
 
-        # spawn enemies
-        # if self._next_spawn_idx < len(self._enemies) and self._curr_tick % SPAWN_INTERVAL == 0:
-        #     e = self._enemies[self._next_spawn_idx]
-        #     e.set_status(EnemyStatus.ALIVE) 
-        #     path_idx = self.rng.randrange(len(self._paths))
-        #     e.assign_path(path_idx) 
-        #     start = self._paths[path_idx][0]
-        #     e.set_position(start[0], start[1]) 
-        #     e.set_waypoint_idx(1) 
-        #     self._next_spawn_idx += 1
-        #     self._tot_spawned += 1
         spawn_pairs = self._enemy_popup.enemy_popup(self._curr_tick, self._enemies, self._paths, self.rng)
         for e_idx, path_id, in spawn_pairs:
             e = self._enemies[e_idx]
@@ -361,7 +453,7 @@ class ZumaTowerModel:
             if e.status == EnemyStatus.ALIVE and e.x >= -CELL_SIZE: # move enemies that are alive and entered screen
                 path = self._paths[e.path_idx]
                 old_x, old_y = e.x, e.y
-                speed = 1.0 + (self._curr_round * 0.05) if self._game_mode == GameMode.ENDLESS else 1.0
+                speed = self._curr_speed_multiplier if self._game_mode == GameMode.ENDLESS else 1.0
                 e.move(path, ENEMY_SPEED * speed)
 
                 if e.enemy_type == EnemyType.REG: # and self._curr_tick % 45 == 0:
@@ -391,7 +483,7 @@ class ZumaTowerModel:
         for tower in self._active_towers:
             tower.update_cooldown()
 
-            if not tower.can_shoot():
+            if not tower.can_shoot() and self._active_powerup != PowerupType.TOWER_FRENZY:
                 continue
             
             assigned_dir = self._tower_directions.get((tower.r, tower.c), tower.direction)
@@ -416,17 +508,6 @@ class ZumaTowerModel:
                 color = self.rng.choice(active_colors)
                 self._moving_bullets.append(Bullet(tower.x, tower.y, vx, vy, color))
 
-            # if tower.is_upgraded: 
-            #     sample_size = min(2, len(active_colors))
-            #     chosen = self.rng.sample(active_colors, sample_size)
-            #     color1 = chosen[0]
-            #     color2 = chosen[1] if sample_size > 1 else chosen[0] 
-            #     self._moving_bullets.append(Bullet(tower.x, tower.y, vx, vy, color1))
-            #     self._moving_bullets.append(Bullet(tower.x, tower.y + 5, vx, vy, color2))
-            # else: # normal tower shoots one bullet
-            #     color = self.rng.choice(list(Color))
-            #     self._moving_bullets.append(Bullet(tower.x, tower.y, vx, vy, color))
-
             tower.reset_cooldown()
 
         # collisions
@@ -438,33 +519,18 @@ class ZumaTowerModel:
         total_round_enemies = len(self._enemies)
 
         if self._user_hp <= 0:
-            self._state = GameState.GAMEOVER
             self._is_game_over = True
-            self.save_leaderboard()  # save progress automatically on death
+            self._nickname = ""
+            self._state = GameState.NAME_INPUT
             return None
 
         if tot_spawned >= total_round_enemies and active_count == 0:
             if self._game_mode == GameMode.CAMPAIGN and self._curr_round >= self._max_rounds:
-                self._state = GameState.GAMEOVER
-                self._is_game_over = True
-                self.save_leaderboard()
-            else:
-                self._state = GameState.ROUND_PENDING
-
-        if self._game_over_condition.is_game_over(self._user_hp, self._tot_spawned, self._tot_killed, active_count):
-            if self._user_hp <= 0:
-                self._state = GameState.GAMEOVER
                 self._is_game_over = True
                 self._nickname = ""
-                return None
-            if tot_spawned >= total_round_enemies and active_count == 0:
-                if self._game_mode == GameMode.CAMPAIGN and self._curr_round >= self.max_rounds:
-                    self._state = GameState.NAME_INPUT
-                    self._state = GameState.GAMEOVER
-                    self._is_game_over = True
-                    self._nickname = ""
-                else:
-                    self._state = GameState.ROUND_PENDING
+                self._state = GameState.NAME_INPUT
+            else:
+                self._state = GameState.ROUND_PENDING
 
     def start_next_round(self) -> None:
         if self._state != GameState.ROUND_PENDING:
@@ -472,6 +538,7 @@ class ZumaTowerModel:
         self._curr_round += 1
         if self._game_mode == GameMode.CAMPAIGN:
             self._curr_round = min(self._curr_round, self._max_rounds)
+        self._coins += COINS_PER_ROUND # reward coins
         self._state = GameState.ONGOING
         self._load_generation_round()
 
@@ -595,6 +662,7 @@ class ZumaTowerModel:
             self._bullet_color = new_color  # next color
             
             bullet = Bullet(origin_x, origin_y, vx, vy, color)
+            bullet._from_shooter = True  # mark as shooter bullet
             self._moving_bullets.append(bullet) # create bullet and add to list
             
             # alive_enem = [e for e in self._enemies if e.status == EnemyStatus.ALIVE]
@@ -651,43 +719,6 @@ class ZumaTowerModel:
         except Exception:
             return []
         
-    @property
-    def tower_levels(self) -> dict[tuple[int, int], int]:
-        result = {}
-        for t in self._active_towers:
-            result[(t.r, t.c)] = t.upgrade_level
-        return result
-    
-    def _mark_path_cells(self) -> None:
-        for path in self._paths:
-            for i in range(len(path) - 1):
-                x1, y1 = path[i]
-                x2, y2 = path[i + 1]
-                
-                steps = max(abs(int(x2) - int(x1)), abs(int(y2) - int(y1))) // CELL_SIZE + 1
-                for s in range(steps + 1):
-                    t = s / steps if steps > 0 else 0
-                    ix = x1 + (x2 - x1) * t
-                    iy = y1 + (y2 - y1) * t
-                    col = int(ix // CELL_SIZE)
-                    row = int(iy // CELL_SIZE)
-                    if 0 <= row < self._rows and 0 <= col < self._cols:
-                        self._grid[row][col] = CellType.PATH
-                        
-        tunnel_source = self._tunnels.values() if isinstance(self._tunnels, dict) else [self._tunnels]
-        for tunnel_list in tunnel_source:
-            if not isinstance(tunnel_list, list):
-                continue
-            for tx, ty, tw, th in tunnel_list:
-                c0 = int(tx // CELL_SIZE)
-                r0 = int(ty // CELL_SIZE)
-                c1 = int((tx + tw) // CELL_SIZE)
-                r1 = int((ty + th) // CELL_SIZE)
-                for r in range(r0, r1 + 1):
-                    for c in range(c0, c1 + 1):
-                        if 0 <= r < self._rows and 0 <= c < self._cols:
-                            self._grid[r][c] = CellType.TUNNEL
-        
     def reset_entire_model(self) -> None:
         self._curr_round = 0
         self._total_exp = 50
@@ -700,11 +731,38 @@ class ZumaTowerModel:
         self._nickname = "ANON"
         self._is_game_over = False
         self._load_generation_round()
+
+        self._active_powerup = None
+        self._powerup_ticks_left = 0
     
     def save_settings(self) -> None:
         data = {
             "enemies_per_round": self._settings_enemies,
-            "players_lives": self._max_hp
+            "player_lives": self._max_hp
         }
         with open("settings.json", "w") as f:
             json.dump(data, f, indent=4)
+
+    # for powerups
+
+    def buy_powerup(self, ptype: PowerupType) -> bool:
+        cost = POWERUP_COST[ptype]
+        if self._coins < cost:
+            return False
+        self._coins -= cost
+        self._inventory[ptype] = self._inventory.get(ptype, 0) + 1
+        return True
+
+    def activate_powerup(self, ptype: PowerupType) -> bool:
+        if self._state != GameState.ONGOING:
+            return False
+        if self._inventory.get(ptype, 0) <= 0:
+            return False
+        self._inventory[ptype] -= 1
+        self._active_powerup = ptype
+        self._powerup_ticks_left = FPS * 5
+        return True
+    
+    def open_inventory(self) -> None:
+        self._prev_state = self._state
+        self._state = GameState.INVENTORY

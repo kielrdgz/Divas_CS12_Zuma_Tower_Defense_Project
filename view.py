@@ -52,7 +52,7 @@ class ZumaTowerView:
     def reset_screen(self) -> None:
         pyxel.cls(0)
 
-    def draw_menu(self) -> None:
+    def draw_menu(self, coins: int) -> None:
         pyxel.rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0)
 
         # twinkle bg menu
@@ -87,8 +87,9 @@ class ZumaTowerView:
         pyxel.rectb(24, 20, 272, 38, 6)
         pyxel.rectb(22, 18, 276, 42, COL_BLUE)
 
-        t1 = " ZUMA TOWER DEFENSE "
-        t2 = "- Tower of Hell -"
+        t1 = "      ZUMA TOWER DEFENSE      "
+        t2 = "Made by AK, Izzie, Khyle, Kiel"
+        pyxel.text(SCREEN_WIDTH - 70, 6, f"Coins: {coins}", COL_YELLOW)
         pyxel.text((SCREEN_WIDTH - len(t1) * 4) // 2, 27, t1, COL_YELLOW)
         pyxel.text((SCREEN_WIDTH - len(t2) * 4) // 2, 38, t2, COL_ORANGE)
 
@@ -99,8 +100,7 @@ class ZumaTowerView:
             pyxel.pset(dx,   dy+2, COL_YELLOW)
             pyxel.pset(dx,   dy,    COL_WHITE)
 
-        # px, py, pw, ph = 74, 72, 172, 120
-        px, py, pw, ph = 74, 72, 172, 144
+        px, py, pw, ph = 74, 72, 172, 155
         pyxel.rect(px, py, pw, ph, COL_DARK)
         pyxel.rectb(px, py, pw, ph, 6)
         pyxel.rectb(px-2, py-2, pw+4, ph+4, COL_BLUE)
@@ -112,6 +112,7 @@ class ZumaTowerView:
             ("[C]", "CAMPAIGN MODE", COL_RED, COL_YELLOW),
             ("[E]", "ENDLESS MODE", COL_ORANGE, COL_GREEN),
             ("[L]", "LEADERBOARD", 6, COL_WHITE),
+            ("[B]", "SHOP", COL_ORANGE, COL_YELLOW),
             ("[S]", "SETTINGS", COL_BLUE, COL_WHITE),
             ("[Q]", "QUIT", COL_RED, COL_GRAY),
         ]
@@ -273,9 +274,11 @@ class ZumaTowerView:
                     if selected == (r, c):
                         pyxel.rectb(x, y, CELL_SIZE, CELL_SIZE, COL_WHITE)
  
-    def draw_hud(self, user_hp: int, total_exp: int, curr_round: int, max_rounds: int, state: GameState, pending_direction: Direction, selected_tower: tuple[int, int] | None = None, game_mode: GameMode = GameMode.CAMPAIGN) -> None:
+    def draw_hud(self, user_hp: int, total_exp: int, coins: int, curr_round: int, max_rounds: int, state: GameState, pending_direction: Direction, selected_tower: tuple[int, int] | None = None, game_mode: GameMode = GameMode.CAMPAIGN) -> None:
         pyxel.text(4, 4,  f"HP:  {user_hp}", COL_WHITE)
         pyxel.text(4, 12, f"EXP: {total_exp}", COL_WHITE)
+        pyxel.text(SCREEN_WIDTH - 70, 4, f"Coins: {coins}", COL_YELLOW)
+
         if game_mode == GameMode.ENDLESS:
             pyxel.text(4, 20, f"Round: {curr_round} (Endless)", COL_WHITE)
         else:
@@ -300,7 +303,8 @@ class ZumaTowerView:
             pyxel.text(8, 208, "Click grid to place Tower (5 EXP)", COL_YELLOW)
             pyxel.text(8, 218, "Click tower to upgrade (5 EXP)", COL_ORANGE)
             
-            pyxel.text(200, 198, "SPACE - Start Round!", COL_GREEN)
+            pyxel.text(200, 185, "SPACE - Start Round!", COL_GREEN)
+            pyxel.text(200, 198, "[B] - Shop", COL_YELLOW)
             pyxel.text(200, 208, "[M] - Main Menu", COL_GRAY)
             pyxel.text(200, 218, "[Q] - Quit", COL_GRAY)
         
@@ -378,7 +382,7 @@ class ZumaTowerView:
         x = col * CELL_SIZE
         y = row * CELL_SIZE
         # box_w, box_h = 110, 40
-        box_w, box_h = 90, 35
+        box_w, box_h = 100, 35
         
         # bx = max(0, min(x - 10, SCREEN_WIDTH - box_w))
         # by = max(0, min(y - box_h - 4, SCREEN_HEIGHT - box_h))
@@ -399,13 +403,24 @@ class ZumaTowerView:
         else:
             pyxel.text(bx + 4, by + 24, "Not enough EXP!", COL_RED)
 
-    def draw_name_input(self, nickname: str) -> None:
+    def draw_name_input(self, nickname: str, is_high_score: bool) -> None:
         pyxel.rect(55, 85, 210, 75, COL_DARK)
         pyxel.rectb(55, 85, 210, 75, COL_WHITE)
-        pyxel.text(70, 95, "NEW HIGH SCORE!", COL_YELLOW)
-        pyxel.text(70, 110, "Enter Nickname:", COL_WHITE)
-        pyxel.text(70, 125, nickname + "_", COL_GREEN) 
+        if is_high_score:
+            pyxel.text(70, 95, "NEW HIGH SCORE!", COL_YELLOW)
+        else:
+            pyxel.text(70, 95, "Nice try!", COL_GREEN)
+        pyxel.text(70, 110, "Enter name for leaderboard:", COL_WHITE)
+        pyxel.text(70, 125, nickname + "_", COL_GREEN)
         pyxel.text(70, 140, "Press ENTER to save", COL_GRAY)
+
+    def draw_name_input_done(self, nickname: str) -> None:
+        pyxel.rect(55, 85, 210, 90, COL_DARK)
+        pyxel.rectb(55, 85, 210, 90, COL_WHITE)
+        pyxel.text(70, 95,  "Score Saved!", COL_GREEN)
+        pyxel.text(70, 110, f"Name: {nickname}", COL_WHITE)
+        pyxel.text(70, 125, "[M] Main Menu", COL_YELLOW)
+        pyxel.text(70, 140, "[L] Leaderboard", COL_GREEN)
 
     def draw_settings(self, lives: int, enemies: int) -> None:
         pyxel.rect(50, 70, 220, 100, COL_DARK)
@@ -419,3 +434,86 @@ class ZumaTowerView:
         pyxel.text(70, 140, "[RIGHT] Increase [LEFT] Decrease", COL_GRAY)
 
         pyxel.text(80, 155, "Press [M] to Save and Exit", COL_GREEN)
+
+    def draw_shop(self, coins: int, inventory: dict[str, int]) -> None:
+        pyxel.rect(20, 15, SCREEN_WIDTH - 40, SCREEN_HEIGHT - 30, COL_DARK)
+        pyxel.rectb(20, 15, SCREEN_WIDTH - 40, SCREEN_HEIGHT - 30, COL_YELLOW)
+        pyxel.text(130, 22, "SHOP", COL_YELLOW)
+        pyxel.text(195, 22, f"Coins: {coins}", COL_ORANGE)
+        items = [
+            (PowerupType.MEGA_BULLET,  10, "Mega Bullet",  "Kill 3 enemies on each side of hit target"),
+            (PowerupType.STAR,         15, "Star",         "Auto-aim + shoot at enemies for 5 secs"),
+            (PowerupType.TOWER_FRENZY, 20, "Tower Frenzy", "All towers fire non-stop for 5 secs"),
+        ]
+        for i, (ptype, cost, name, desc) in enumerate(items):
+            y = 45 + i * 52
+            owned = inventory.get(ptype, 0)
+            can_buy = coins >= cost
+            pyxel.rect(30, y, SCREEN_WIDTH - 60, 44, 1)
+            pyxel.rectb(30, y, SCREEN_WIDTH - 60, 44, 6 if can_buy else COL_GRAY)
+            pyxel.text(38, y + 5,  f"[{i+1}] {name}", COL_WHITE)
+            pyxel.text(38, y + 15, desc, COL_GRAY)
+            pyxel.text(38, y + 28, f"Cost: {cost} coins", COL_GREEN if can_buy else COL_RED)
+            pyxel.text(220, y + 5, f"x{owned}", COL_YELLOW)
+        pyxel.text(35, SCREEN_HEIGHT - 30, "[X] Close", COL_GRAY)
+        pyxel.text(130, SCREEN_HEIGHT - 30, "Press number key to buy.", COL_GRAY)
+
+    def draw_inventory_detail(self, inventory: dict[str, int], active_powerup: object) -> None:
+        pyxel.rect(20, 15, SCREEN_WIDTH - 40, SCREEN_HEIGHT - 30, COL_DARK)
+        pyxel.rectb(20, 15, SCREEN_WIDTH - 40, SCREEN_HEIGHT - 30, COL_BLUE)
+        pyxel.text(125, 22, "INVENTORY", COL_YELLOW)
+        items = [
+            (PowerupType.MEGA_BULLET,  "1", "Mega Bullet",  "One-shot: kills 3 enemies around target"),
+            (PowerupType.STAR,         "2", "Star",         "Auto-shoot toward enemies for 5 sec"),
+            (PowerupType.TOWER_FRENZY, "3", "Tower Frenzy", "All towers go brrr for 5 sec"),
+        ]
+        for i, (ptype, key, name, desc) in enumerate(items):
+            y = 45 + i * 52
+            cnt = inventory.get(ptype, 0)
+            is_active = active_powerup == ptype
+            border = COL_YELLOW if is_active else (COL_GREEN if cnt > 0 else COL_GRAY)
+            pyxel.rect(30, y, SCREEN_WIDTH - 60, 44, 1)
+            pyxel.rectb(30, y, SCREEN_WIDTH - 60, 44, border)
+            pyxel.text(38, y + 5,  f"x{cnt}", COL_GREEN if cnt > 0 else COL_GRAY)
+            pyxel.text(60, y + 5,  name, COL_WHITE if cnt > 0 else COL_GRAY)
+            pyxel.text(60, y + 17, desc, COL_GRAY)
+            if is_active:
+                pyxel.text(220, y + 5, "ACTIVE!", COL_YELLOW)
+            elif cnt > 0:
+                pyxel.text(220, y + 5, f"[{key}] use", COL_GREEN)
+        pyxel.text(35, SCREEN_HEIGHT - 22, "[X] Close", COL_GRAY)
+
+    def draw_inventory_hud(self, inventory: dict[str, int]) -> None:  # the small top-right corner thingy always visible while in game
+        bx = SCREEN_WIDTH - 72
+        by = 2
+        pyxel.rect(bx, by, 70, 20, COL_DARK)
+        pyxel.rectb(bx, by, 70, 20, 6)
+        pyxel.text(bx + 2, by + 23, "[I] Inventory", COL_GRAY)
+        icons = [
+            (PowerupType.MEGA_BULLET,  "MB"),
+            (PowerupType.STAR,         "ST"),
+            (PowerupType.TOWER_FRENZY, "TF"),
+        ]
+        for j, (ptype, abbr) in enumerate(icons):
+            cnt = inventory.get(ptype, 0)
+            col = COL_YELLOW if cnt > 0 else COL_GRAY
+            x = bx + 4 + j * 23
+            pyxel.text(x, by + 3,  abbr, col)
+            pyxel.text(x, by + 11, str(cnt), COL_WHITE if cnt > 0 else COL_GRAY)
+
+    def draw_active_powerup_indicator(self, active_powerup: object, ticks_left: int) -> None:
+        if active_powerup is None:
+            return
+        labels: dict[object, str] = {
+            PowerupType.MEGA_BULLET:  "MEGA BULLET ACTIVE - next shot",
+            PowerupType.STAR:         f"STAR ACTIVE - {ticks_left // FPS + 1}s",
+            PowerupType.TOWER_FRENZY: f"TOWER FRENZY - {ticks_left // FPS + 1}s",
+        }
+        text = labels.get(active_powerup, "")
+        if not text:
+            return
+        bw = len(text) * 4 + 10
+        bx = (SCREEN_WIDTH - bw) // 2
+        pyxel.rect(bx, 28, bw, 11, COL_DARK)
+        pyxel.rectb(bx, 28, bw, 11, COL_YELLOW)
+        pyxel.text(bx + 5, 31, text, COL_YELLOW)
