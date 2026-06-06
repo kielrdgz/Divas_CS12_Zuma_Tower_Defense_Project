@@ -66,7 +66,7 @@ if __name__ == '__main__':
     controller.start_game()
 
     def exit_handler():
-        if game_instance._model._game_mode == GameMode.ENDLESS:
-            game_instance._model.save_leaderboard_partial()
+        if model._game_mode == GameMode.ENDLESS:
+            model.save_leaderboard_partial()
 
     atexit.register(exit_handler)

@@ -37,6 +37,7 @@ class ZumaTowerModel:
         
         self._state: GameState = GameState.MENU
         self._prev_state: GameState = GameState.MENU # not used yet, but for pausing i think
+        self._confirm_prev_state: GameState = GameState.MENU
         self._is_game_over: bool = False
         self._curr_tick: int = 0
         self._total_exp: int = 50
@@ -322,8 +323,29 @@ class ZumaTowerModel:
     def _build_path(self, waypoints: list[tuple[float, float]]) -> list[tuple[float, float]]:
         if not waypoints:
             return []
-        start = (-float(CELL_SIZE), waypoints[0][1])
-        end = (float(SCREEN_WIDTH + CELL_SIZE), waypoints[-1][1])
+        
+        fx, fy = waypoints[0]
+        if len(waypoints) > 1:
+            sx, sy = waypoints[1]
+            dx, dy = sx - fx, sy - fy
+        else:
+            dx, dy = 1.0, 0.0  # fallback: left-to-right
+        length = (dx**2 + dy**2) ** 0.5
+        if length > 0:
+            dx, dy = dx / length, dy / length
+        start = (fx - dx * CELL_SIZE, fy - dy * CELL_SIZE)
+        
+        lx, ly = waypoints[-1]
+        if len(waypoints) > 1:
+            px, py = waypoints[-2]
+            ex, ey = lx - px, ly - py
+        else:
+            ex, ey = 1.0, 0.0  # fallback
+        length2 = (ex**2 + ey**2) ** 0.5
+        if length2 > 0:
+            ex, ey = ex / length2, ey / length2
+        end = (lx + ex * CELL_SIZE, ly + ey * CELL_SIZE)
+
         return [start, *waypoints, end]
 
     # convert direction to its velocity equivalent
@@ -366,7 +388,7 @@ class ZumaTowerModel:
                     self._total_exp += e.exp_pts   # award exp points
                     bullets_to_remove.add(bi)      # mark bullet for removal
                     if getattr(bullet, '_is_mega', False):
-                        same_path = [x for x in self._enemies if x.status == EnemyStatus.ALIVE and x.path_idx == e.path_idx]
+                        same_path = [x for x in self._enemies if x is not e and x.status == EnemyStatus.ALIVE and x.path_idx == e.path_idx]
                         for se in same_path:
                             se.set_status(EnemyStatus.DEAD)
                             self._tot_killed += 1

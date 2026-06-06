@@ -38,6 +38,9 @@ class ZumaTowerController:
         elif state == GameState.CONFIRM_MENU:
             if pyxel.btnp(pyxel.KEY_Y):
                 self._model.reset_entire_model()
+                self._selected_tower = None
+                self._tower_menu_open = False
+                self._pending_tower_cell = None
             elif pyxel.btnp(pyxel.KEY_N):
                 self._model.cancel_confirm()
             return None
