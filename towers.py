@@ -9,7 +9,7 @@ COOLDOWN = 30
 class Tower:
     COST: int = 5
     UPGRADE_COST: int = 10
-    upgrade_level = 0
+    # upgrade_level = 0
     
     def __init__(self, r: int, c: int, direction: Direction) -> None:
         self.r: int = r
@@ -66,7 +66,7 @@ class Tower:
 class UpgradedTower(Tower):
     COST: int = 10
     UPGRADE_COST: int = 20
-    upgrade_level = 1
+    # upgrade_level = 1
     
     def __init__(self, x: int, y: int, direction: Direction) -> None:
         super().__init__(x, y, direction)
@@ -112,7 +112,7 @@ class UpgradedTower(Tower):
 class UpgradedTower2(UpgradedTower):
     COST: int = 20
     UPGRADE_COST: int = 0  # max reached
-    upgrade_level = 2
+    # upgrade_level = 2
     
     def __init__(self, x: int, y: int, direction: Direction) -> None:
         super().__init__(x, y, direction)

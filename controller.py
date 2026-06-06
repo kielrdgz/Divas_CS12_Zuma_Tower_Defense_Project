@@ -160,6 +160,8 @@ class ZumaTowerController:
                 self._model.open_confirm_menu()
 
             if pyxel.btnp(pyxel.KEY_Q):
+                if self._model._game_mode == GameMode.ENDLESS:
+                    self._model.save_leaderboard_partial()
                 self._model.open_confirm_reset()
                 return None
             
@@ -259,6 +261,8 @@ class ZumaTowerController:
                 return None
 
             if pyxel.btnp(pyxel.KEY_Q):
+                if self._model.game_mode == GameMode.ENDLESS:
+                    self._model.save_leaderboard_partial()
                 self._model.open_confirm_reset()
             elif pyxel.btnp(pyxel.KEY_M):
                 self._model.open_confirm_menu()

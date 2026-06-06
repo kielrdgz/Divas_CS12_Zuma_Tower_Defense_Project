@@ -188,7 +188,14 @@ class ZumaTowerView:
             Color.BLUE: (16, 64),
             Color.VIOLET: (32, 64),
         }
-        regenerator_sprite = (0, 48)
+        regenerator_sprite = {
+            Color.RED:    (48, 112),
+            Color.ORANGE: (0,  128),
+            Color.YELLOW: (16, 128),
+            Color.GREEN:  (0,  48),
+            Color.BLUE:   (32, 128),
+            Color.VIOLET: (48, 128),
+        }
 
         for enemy in enemies:
             if enemy.status != EnemyStatus.ALIVE or enemy.x < -CELL_SIZE:
@@ -198,7 +205,7 @@ class ZumaTowerView:
             
             etype = getattr(enemy, "enemy_type", None)
             if etype == EnemyType.REG:
-                u, v = regenerator_sprite
+                u, v = regenerator_sprite.get(enemy.color, (0, 48))
             elif etype == EnemyType.CHM:
                 u, v = chameleon_sprites.get(enemy.color, (16, 48))
             else:
@@ -218,8 +225,11 @@ class ZumaTowerView:
         for bullet in bullets:
             bx = int(bullet.x) - BULLET_RADIUS
             by = int(bullet.y) - BULLET_RADIUS
-            u, v = bullet_sprites.get(bullet.color, (0, 0))
-            pyxel.blt(bx, by, 0, u, v, BULLET_RADIUS*2, BULLET_RADIUS*2, 6)
+            if getattr(bullet, '_is_mega', False): # change bullet into bomb sprite
+                u, v = 0, 144
+            else:
+                u, v = bullet_sprites.get(bullet.color, (0, 0))
+            pyxel.blt(bx, by, 0, u, v, 10, 10, 6) # 10x10 design bullet
  
     def draw_shooter(self, shooter_x: float, shooter_y: float, bullet_color: Color) -> None:
         sx = int(shooter_x)

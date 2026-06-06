@@ -70,6 +70,7 @@ class ZumaTowerModel:
         self._frames_per_shot: int = 5 # int(FPS / 0.9)
         self._nickname: str = ""
         self._leaderboard_file: str = "leaderboard.json"
+        self._wallet_file: str = "wallet.json"
         self._pending_direction: Direction = Direction.UP
         self._settings_enemies: int = settings_enemies
 
@@ -79,6 +80,7 @@ class ZumaTowerModel:
         # for shop
         self._coins: int = 670 # change when done testing
         self._inventory: dict[PowerupType, int] = {p: 0 for p in PowerupType}
+        self._load_wallet()
         self._active_powerup: PowerupType | None = None
         self._powerup_ticks_left: int = 0
         self._star_shoot_cooldown: int = 0
@@ -278,7 +280,8 @@ class ZumaTowerModel:
         avail_colors = [Color.RED, Color.ORANGE, Color.YELLOW, Color.GREEN, Color.BLUE, Color.VIOLET]
 
         if self._game_mode == GameMode.CAMPAIGN:
-            enemies = self._settings_enemies
+            enemies = self._settings_enemies + ((r - 1) * 2)
+            # hp = max(1, r//3)
             hp = 1 + (r // 4)
         else: # endless mode
             enemies = self._settings_enemies + ((r - 1) * 3)
@@ -343,7 +346,7 @@ class ZumaTowerModel:
                     continue
                 if e.x <= -CELL_SIZE:
                     continue
-                if bullet.color != e.color and self._active_powerup != PowerupType.MEGA_BULLET:
+                if bullet.color != e.color and not getattr(bullet, '_is_mega', False):
                     continue
 
                 in_tunnel = False
@@ -362,17 +365,12 @@ class ZumaTowerModel:
                     self._tot_killed += 1          # increment kill count
                     self._total_exp += e.exp_pts   # award exp points
                     bullets_to_remove.add(bi)      # mark bullet for removal
-                    if self._active_powerup == PowerupType.MEGA_BULLET and bullet._from_shooter:  # used powerup
-                        same_path = sorted(
-                            [x for x in self._enemies if x.status == EnemyStatus.ALIVE and x.path_idx == e.path_idx],
-                            key=lambda x: (x.waypoint_idx, x.x)
-                        )
+                    if getattr(bullet, '_is_mega', False):
+                        same_path = [x for x in self._enemies if x.status == EnemyStatus.ALIVE and x.path_idx == e.path_idx]
                         for se in same_path:
                             se.set_status(EnemyStatus.DEAD)
                             self._tot_killed += 1
                             self._total_exp += se.exp_pts
-                        self._active_powerup = None
-                        self._powerup_ticks_left = 0
                     break # stop checking other enemies for this bullet
 
         self._moving_bullets = [
@@ -483,8 +481,13 @@ class ZumaTowerModel:
         for tower in self._active_towers:
             tower.update_cooldown()
 
-            if not tower.can_shoot() and self._active_powerup != PowerupType.TOWER_FRENZY:
-                continue
+            frenzy_active = self._active_powerup == PowerupType.TOWER_FRENZY
+
+            if not tower.can_shoot():
+                if not frenzy_active:
+                    continue
+                elif tower.upgrade_level > 0:
+                    continue
             
             assigned_dir = self._tower_directions.get((tower.r, tower.c), tower.direction)
 
@@ -508,7 +511,8 @@ class ZumaTowerModel:
                 color = self.rng.choice(active_colors)
                 self._moving_bullets.append(Bullet(tower.x, tower.y, vx, vy, color))
 
-            tower.reset_cooldown()
+            if not frenzy_active or tower.upgrade_level == 0:
+                tower.reset_cooldown()
 
         # collisions
         self._check_collisions()
@@ -661,17 +665,16 @@ class ZumaTowerModel:
                 
             self._bullet_color = new_color  # next color
             
+            is_mega = self._active_powerup == PowerupType.MEGA_BULLET
+
             bullet = Bullet(origin_x, origin_y, vx, vy, color)
             bullet._from_shooter = True  # mark as shooter bullet
+            bullet._is_mega = is_mega
             self._moving_bullets.append(bullet) # create bullet and add to list
             
-            # alive_enem = [e for e in self._enemies if e.status == EnemyStatus.ALIVE]
-            # if alive_enem:
-            #     chosen = self.rng.choice(alive_enem)
-            #     if chosen.enemy_type == EnemyType.CHM and self.rng.random() < 0.15:
-            #         colors = [ Color.RED, Color.ORANGE, Color.YELLOW, Color.GREEN, Color.BLUE, Color.VIOLET]
-            #         chosen.color = self.rng.choice(colors)
-            #     self._bullet_color = chosen.color
+            if is_mega:
+                self._active_powerup = None   
+                self._powerup_ticks_left = 0
 
             self._shoot_cooldown = self._frames_per_shot # start cooldown so spamming not allowed
         
@@ -710,6 +713,9 @@ class ZumaTowerModel:
         with open(self._leaderboard_file, "w") as f:
             json.dump(records, f, indent=4)
 
+        self._save_wallet()
+    
+
     def load_raw_leaderboard(self) -> list[dict[str, Any]]:
         if not os.path.exists(self._leaderboard_file):
             return []
@@ -734,6 +740,7 @@ class ZumaTowerModel:
 
         self._active_powerup = None
         self._powerup_ticks_left = 0
+        self._load_wallet()
     
     def save_settings(self) -> None:
         data = {
@@ -758,6 +765,10 @@ class ZumaTowerModel:
             return False
         if self._inventory.get(ptype, 0) <= 0:
             return False
+        
+        if ptype == PowerupType.TOWER_FRENZY and not self._active_towers:
+            return False
+
         self._inventory[ptype] -= 1
         self._active_powerup = ptype
         self._powerup_ticks_left = FPS * 5
@@ -766,3 +777,56 @@ class ZumaTowerModel:
     def open_inventory(self) -> None:
         self._prev_state = self._state
         self._state = GameState.INVENTORY
+
+    def save_leaderboard_partial(self) -> None:
+        save_round = self._curr_round - 1
+        if save_round < 1:
+            return  # nothing completed yet
+            
+        if not self._nickname.strip():
+            self._nickname = "ANON"
+            
+        data: dict[str, Any] = {
+            "name": self._nickname.strip().upper(),
+            "score": self._total_exp,
+            "round": save_round,
+            "mode": self._game_mode.name,
+        }
+        
+        records: list[dict[str, Any]] = []
+        if os.path.exists(self._leaderboard_file):
+            try:
+                with open(self._leaderboard_file, "r") as f:
+                    records = json.load(f)
+            except Exception:
+                records = []
+                
+        records.append(data)
+        records = sorted(records, key=lambda x: int(x["score"]), reverse=True)
+        
+        with open(self._leaderboard_file, "w") as f:
+            json.dump(records, f, indent=4)
+        
+        self._save_wallet()
+    
+    def _load_wallet(self) -> None:
+        if not os.path.exists(self._wallet_file):
+            return
+        try:
+            with open(self._wallet_file, "r") as f:
+                data = json.load(f)
+            self._coins = int(data.get("coins", self._coins))
+            inv = data.get("inventory", {})
+            for p in PowerupType:
+                # Convert enum key to string matching the saved JSON keys
+                self._inventory[p] = int(inv.get(str(p), 0))
+        except Exception:
+            pass
+    
+    def _save_wallet(self) -> None:
+        data: dict[str, Any] = {
+            "coins": self._coins,
+            "inventory": {str(p): v for p, v in self._inventory.items()},
+        }
+        with open(self._wallet_file, "w") as f:
+            json.dump(data, f, indent=4)

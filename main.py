@@ -6,6 +6,7 @@ from view import ZumaTowerView
 from controller import ZumaTowerController
 from data import *                     
 from enemies import NormalEnemy, Enemy
+import atexit
 
 def load_settings() -> dict[str, int]:
     try:
@@ -63,3 +64,9 @@ if __name__ == '__main__':
     view = ZumaTowerView()
     controller = ZumaTowerController(model, view)
     controller.start_game()
+
+    def exit_handler():
+        if game_instance._model._game_mode == GameMode.ENDLESS:
+            game_instance._model.save_leaderboard_partial()
+
+    atexit.register(exit_handler)
