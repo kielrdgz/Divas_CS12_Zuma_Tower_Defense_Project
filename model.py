@@ -383,16 +383,18 @@ class ZumaTowerModel:
                     continue 
                 
                 if (abs(bullet.x - e.x) < self._enemy_half and abs(bullet.y - e.y) < self._enemy_half):
-                    e.set_status(EnemyStatus.DEAD) # kill enemy
-                    self._tot_killed += 1          # increment kill count
-                    self._total_exp += e.exp_pts   # award exp points
-                    bullets_to_remove.add(bi)      # mark bullet for removal
+                    e.hit(1)
+                    bullets_to_remove.add(bi)
+                    if e.status == EnemyStatus.DEAD: # kill enemy
+                        self._tot_killed += 1          # increment kill count
+                        self._total_exp += e.exp_pts   # award exp points
                     if getattr(bullet, '_is_mega', False):
                         same_path = [x for x in self._enemies if x is not e and x.status == EnemyStatus.ALIVE and x.path_idx == e.path_idx]
                         for se in same_path:
-                            se.set_status(EnemyStatus.DEAD)
-                            self._tot_killed += 1
-                            self._total_exp += se.exp_pts
+                            se.hit(1)
+                            if se.status == EnemyStatus.DEAD:
+                                self._tot_killed += 1
+                                self._total_exp += se.exp_pts
                     break # stop checking other enemies for this bullet
 
         self._moving_bullets = [
