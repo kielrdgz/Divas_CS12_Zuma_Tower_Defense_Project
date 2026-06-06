@@ -35,31 +35,49 @@ class ZumaTowerController:
             return None
         
         # confirm menu dialog
-        if state == GameState.CONFIRM_MENU:
+        elif state == GameState.CONFIRM_MENU:
             if pyxel.btnp(pyxel.KEY_Y):
                 self._model.reset_entire_model()
             elif pyxel.btnp(pyxel.KEY_N):
                 self._model.cancel_confirm()
             return None
         
-        # game over screen
-        # if self._model.is_game_over:
-        #     return None
+        # open shop in main menu
+        elif state == GameState.MAIN_MENU_SHOP:
+            if pyxel.btnp(pyxel.KEY_X):
+                self._model.set_state(GameState.MENU)
+            elif pyxel.btnp(pyxel.KEY_1):
+                self._model.buy_powerup(PowerupType.MEGA_BULLET)
+            elif pyxel.btnp(pyxel.KEY_2):
+                self._model.buy_powerup(PowerupType.STAR)
+            elif pyxel.btnp(pyxel.KEY_3):
+                self._model.buy_powerup(PowerupType.TOWER_FRENZY)
+            return None
 
-        if state == GameState.NAME_INPUT:
+        # ask for name input for leaderbaord
+        elif state == GameState.NAME_INPUT:
             for key in range(pyxel.KEY_A, pyxel.KEY_Z + 1):
                 if pyxel.btnp(key) and len(self._model._nickname) < 8:
-                    self._model._nickname += chr(key - pyxel.KEY_A + 65) # Convert to letter
+                    self._model._nickname += chr(key - pyxel.KEY_A + 65)
                     
             if pyxel.btnp(pyxel.KEY_BACKSPACE) and len(self._model._nickname) > 0:
                 self._model._nickname = self._model._nickname[:-1]
                 
             if pyxel.btnp(pyxel.KEY_RETURN) and len(self._model._nickname) > 0:
                 self._model.save_leaderboard()
-                self._model.set_state(GameState.GAMEOVER)
+                self._model.set_state(GameState.NAME_INPUT_DONE)
             return None
 
-        if state == GameState.SETTINGS:
+        # done typing name for leaderboard
+        elif state == GameState.NAME_INPUT_DONE:
+            if pyxel.btnp(pyxel.KEY_M):
+                self._model.reset_entire_model()
+            elif pyxel.btnp(pyxel.KEY_L):
+                self._model.set_state(GameState.LEADERBOARD)
+            return None
+
+        # edit settings of enemy count and hp count
+        elif state == GameState.SETTINGS:
             if pyxel.btnp(pyxel.KEY_UP): 
                 self._model._max_hp += 1
             if pyxel.btnp(pyxel.KEY_DOWN): 
@@ -98,10 +116,13 @@ class ZumaTowerController:
             elif pyxel.btnp(pyxel.KEY_L) or (clicked and 74 <= mx <= 246 and 133 <= my <= 149):
                 self._model.set_state(GameState.LEADERBOARD)
 
-            elif pyxel.btnp(pyxel.KEY_S) or (clicked and 74 <= mx <= 246 and 157 <= my <= 173): 
+            elif pyxel.btnp(pyxel.KEY_B) or (clicked and 74 <= mx <= 246 and 157 <= my <= 173):
+                self._model.set_state(GameState.MAIN_MENU_SHOP)
+
+            elif pyxel.btnp(pyxel.KEY_S) or (clicked and 74 <= mx <= 246 and 181 <= my <= 197): 
                 self._model.set_state(GameState.SETTINGS)
             
-            elif pyxel.btnp(pyxel.KEY_Q) or (clicked and 74 <= mx <= 246 and 181 <= my <= 196):
+            elif pyxel.btnp(pyxel.KEY_Q) or (clicked and 74 <= mx <= 246 and 205 <= my <= 220):
                 pyxel.quit()
                 
             return None
@@ -119,19 +140,6 @@ class ZumaTowerController:
             elif pyxel.btnp(pyxel.KEY_Q):
                 self._model.open_confirm_reset()
             return None
- 
-        elif self._model.state == GameState.ONGOING:
-            kills_before = self._model.tot_killed
-            self._model.update()
-            
-            if self._model.tot_killed > kills_before: # sfx for killing enemies but should probably be moved to view
-                try:
-                    pyxel.play(3, 0) 
-                except Exception:
-                    pass
-
-            if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT): 
-                self._model.shoot(float(pyxel.mouse_x), float(pyxel.mouse_y))
             
         elif self._model.state == GameState.GAMEOVER:
             if pyxel.btnp(pyxel.KEY_M) or pyxel.btnp(pyxel.KEY_R):
@@ -154,6 +162,15 @@ class ZumaTowerController:
             if pyxel.btnp(pyxel.KEY_Q):
                 self._model.open_confirm_reset()
                 return None
+            
+            if pyxel.btnp(pyxel.KEY_B) and not self._tower_menu_open: # B for buy kasi gamit na yung S
+                self._model.set_state(GameState.SHOP)
+                return None
+            
+            if pyxel.btnp(pyxel.KEY_I):
+                self._model.open_inventory()
+                return None
+
 
             col = pyxel.mouse_x // CELL_SIZE
             row = pyxel.mouse_y // CELL_SIZE
@@ -228,7 +245,7 @@ class ZumaTowerController:
             kills_before = self._model.tot_killed
             self._model.update()
             
-            if self._model.tot_killed > kills_before:
+            if self._model.tot_killed > kills_before: # sfx for killing enemies but should probably be moved to view
                 try:
                     pyxel.play(3, 0) 
                 except Exception:
@@ -237,22 +254,57 @@ class ZumaTowerController:
             if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT): 
                 self._model.shoot(float(pyxel.mouse_x), float(pyxel.mouse_y))
 
+            if pyxel.btnp(pyxel.KEY_I):
+                self._model.open_inventory()
+                return None
+
             if pyxel.btnp(pyxel.KEY_Q):
                 self._model.open_confirm_reset()
             elif pyxel.btnp(pyxel.KEY_M):
                 self._model.open_confirm_menu()
+            return None
+        
+        elif self._model.state == GameState.SHOP:
+            if pyxel.btnp(pyxel.KEY_X):
+                self._model.set_state(GameState.ROUND_PENDING)
+            elif pyxel.btnp(pyxel.KEY_1):
+                self._model.buy_powerup(PowerupType.MEGA_BULLET)
+            elif pyxel.btnp(pyxel.KEY_2):
+                self._model.buy_powerup(PowerupType.STAR)
+            elif pyxel.btnp(pyxel.KEY_3):
+                self._model.buy_powerup(PowerupType.TOWER_FRENZY)
+            return None
+
+        elif self._model.state == GameState.INVENTORY:
+            if pyxel.btnp(pyxel.KEY_X):
+                self._model.set_state(self._model._prev_state)
+            elif self._model._prev_state == GameState.ONGOING:
+                if pyxel.btnp(pyxel.KEY_1):
+                    self._model.set_state(GameState.ONGOING)
+                    self._model.activate_powerup(PowerupType.MEGA_BULLET)
+                elif pyxel.btnp(pyxel.KEY_2):
+                    self._model.set_state(GameState.ONGOING)
+                    self._model.activate_powerup(PowerupType.STAR)
+                elif pyxel.btnp(pyxel.KEY_3):
+                    self._model.set_state(GameState.ONGOING)
+                    self._model.activate_powerup(PowerupType.TOWER_FRENZY)
             return None
 
     def draw(self) -> None:
         self._view.reset_screen()
 
         if self._model.state == GameState.MENU:
-            self._view.draw_menu()
+            self._view.draw_menu(self._model.coins)
+            return None
+        
+        elif self._model.state == GameState.MAIN_MENU_SHOP:
+            self._view.draw_shop(self._model.coins, self._model.inventory)
             return None
         
         elif self._model.state == GameState.LEADERBOARD:
             self._view.draw_leaderboard(self._model.load_raw_leaderboard())
             return None
+        
         elif self._model.state == GameState.SETTINGS:
             self._view.draw_settings(self._model._max_hp, self._model._settings_enemies)
             return None
@@ -268,7 +320,11 @@ class ZumaTowerController:
         if self._model.state != GameState.ROUND_PENDING:
             self._view.draw_bullets(self._model.bullets)
         self._view.draw_shooter(self._model.shooter_x, self._model.shooter_y, self._model.bullet_color)
-        self._view.draw_hud(self._model.user_hp, self._model.total_exp, self._model.curr_round, self._model.max_rounds, self._model.state, self._model.pending_direction, self._model._game_mode, self._selected_tower)
+        self._view.draw_hud(self._model.user_hp, self._model.total_exp, self._model.coins, self._model.curr_round, self._model.max_rounds, self._model.state, self._model.pending_direction, self._selected_tower, self._model._game_mode)
+        self._view.draw_inventory_hud(self._model.inventory)
+
+        if self._model.state == GameState.ONGOING:
+            self._view.draw_active_powerup_indicator(self._model.active_powerup, self._model.powerup_ticks_left)
             
         if self._model.state in (GameState.ONGOING, GameState.PAUSED):
             self._view.draw_pause_button(self._model.state == GameState.PAUSED)
@@ -284,6 +340,14 @@ class ZumaTowerController:
                 r, c = self._pending_tower_cell
                 self._view.draw_place_confirm(r, c, self._model.total_exp)
 
+        if self._model.state == GameState.SHOP:
+            self._view.draw_shop(self._model.coins, self._model.inventory)
+            return None
+
+        if self._model.state == GameState.INVENTORY:
+            self._view.draw_inventory_detail(self._model.inventory, self._model.active_powerup)
+            return None
+        
         if self._model.state == GameState.CONFIRM_RESET:
             self._view.draw_confirm_reset()
 
@@ -294,7 +358,9 @@ class ZumaTowerController:
             self._view.draw_quit_confirm()
         
         if self._model.state == GameState.NAME_INPUT:
-            self._view.draw_name_input(self._model._nickname)
+            self._view.draw_name_input(self._model._nickname, self._model.is_high_score)
+        elif self._model.state == GameState.NAME_INPUT_DONE:
+            self._view.draw_name_input_done(self._model._nickname)
 
-        if self._model.is_game_over:
+        if self._model.is_game_over and self._model.state not in (GameState.NAME_INPUT, GameState.NAME_INPUT_DONE):
             self._view.draw_game_over(self._model.total_exp, self._model.user_hp)

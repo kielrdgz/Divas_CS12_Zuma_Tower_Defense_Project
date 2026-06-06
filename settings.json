@@ -1,4 +1,4 @@
 {
     "enemies_per_round": 10,
-    "players_lives": 3
+    "player_lives": 3
 }

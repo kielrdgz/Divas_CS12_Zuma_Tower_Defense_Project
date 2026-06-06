@@ -24,11 +24,6 @@ if __name__ == '__main__':
     colors = [Color.RED, Color.ORANGE, Color.YELLOW, Color.GREEN, Color.BLUE, Color.VIOLET]
     rounds = 12
     
-    enemies: list[Enemy] = [
-        NormalEnemy.standard(rng.choice(colors)) 
-        for _ in range(config["enemies_per_round"])
-    ]
-    
     paths = [
         [  # path 1
             ZumaTowerView.cell_center(row=2, col=5), 
@@ -52,14 +47,15 @@ if __name__ == '__main__':
     }
 
     model = ZumaTowerModel(
-        enemies=enemies,
+        enemies=[],
         user_hp=config.get("player_lives", 3),  # user_hp=config["player_lives"],
         max_rounds=rounds,
         game_over_condition=SimpleGameOverCondition(),
         rng=rng,
         paths=paths,
         tunnels=tunnels, 
-        popupplan=SimpleEnemyPopupPlan()
+        popupplan=SimpleEnemyPopupPlan(),
+        settings_enemies=config.get("enemies_per_round")
     )
 
     model.set_state(GameState.MENU)

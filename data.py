@@ -11,7 +11,7 @@ FPS: int = 30
 CELL_SIZE: int = 16
 
 _DIAGONAL: float = (SCREEN_WIDTH**2 + SCREEN_HEIGHT**2) ** 0.5
-BULLET_SPEED: float = _DIAGONAL / (3 * FPS) # change the 3 to make bullet speed faster/slower
+BULLET_SPEED: float = _DIAGONAL / (4 * FPS) # change the 4 to make bullet speed faster/slower
 
 class GameMode(StrEnum):
     CAMPAIGN = "CAMPAIGN"
@@ -31,8 +31,12 @@ class GameState(StrEnum):
     CONFIRM_RESET = "CONFIRM_RESET"
     CONFIRM_MENU = "CONFIRM_MENU"
     NAME_INPUT = "NAME_INPUT"
+    NAME_INPUT_DONE = "NAME_INPUT_DONE"
     SETTINGS = "SETTINGS"
-
+    SHOP = "SHOP"
+    INVENTORY = "INVENTORY"
+    MAIN_MENU_SHOP = "MAIN_MENU_SHOP"
+    
 class CellType(StrEnum):
     EMPTY = "EMPTY"
     PATH = "PATH"
@@ -77,6 +81,7 @@ class Bullet:
         self._vy = vy
         self._color = color
         self._is_moving: bool = True
+        self._from_shooter: bool = False  # for powerup, mega bullet
         
     @property
     def x(self) -> float:
@@ -93,6 +98,10 @@ class Bullet:
     @property
     def is_moving(self) -> bool:
         return self._is_moving
+    
+    @property
+    def from_shooter(self) -> bool:
+        return self._from_shooter
 
     def update(self) -> None:
         self._x += self._vx 
@@ -105,6 +114,25 @@ class Direction(StrEnum):
     DOWN = "DOWN"
     LEFT = "LEFT"
     RIGHT = "RIGHT"
+
+class PowerupType(StrEnum):
+    MEGA_BULLET  = "MEGA_BULLET"
+    STAR         = "STAR"
+    TOWER_FRENZY = "TOWER_FRENZY"
+
+POWERUP_COST: dict[PowerupType, int] = {
+    PowerupType.MEGA_BULLET:  10,
+    PowerupType.STAR:         15,
+    PowerupType.TOWER_FRENZY: 20,
+}
+
+POWERUP_LABEL: dict[PowerupType, str] = {
+    PowerupType.MEGA_BULLET:  "Mega Bullet",
+    PowerupType.STAR:         "Star",
+    PowerupType.TOWER_FRENZY: "Tower Frenzy",
+}
+
+COINS_PER_ROUND: int = 10
 
 
 # remove this if will not use
