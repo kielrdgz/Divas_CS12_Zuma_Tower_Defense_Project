@@ -1,6 +1,6 @@
 # pyright: strict
 from __future__ import annotations
-from data import FPS, Direction
+from data import *
 
 COUNT = 3
 SPACING = 9   
@@ -16,10 +16,8 @@ class Tower:
         self.c: int = c
         self._direction: Direction = direction
         
-        # Calculate pixel coordinates dynamically based on grid cells
-        # This keeps bullet spawning logic fully intact!
-        self._x: float = (c * 16) + 8  # Assuming CELL_SIZE = 16
-        self._y: float = (r * 16) + 8
+        self._x: float = (c * CELL_SIZE) + 8  
+        self._y: float = (r * CELL_SIZE) + 8
         
         self._cooldown_max: int = FPS
         self._current_cooldown: int = 0
@@ -70,7 +68,7 @@ class UpgradedTower(Tower):
     UPGRADE_COST: int = 20
     upgrade_level = 1
     
-    def __init__(self, x: float, y: float, direction: Direction) -> None:
+    def __init__(self, x: int, y: int, direction: Direction) -> None:
         super().__init__(x, y, direction)
         self._burst_shots_left: int = 0
         self._burst_cooldown: int = 0
@@ -116,7 +114,7 @@ class UpgradedTower2(UpgradedTower):
     UPGRADE_COST: int = 0  # max reached
     upgrade_level = 2
     
-    def __init__(self, x: float, y: float, direction: Direction) -> None:
+    def __init__(self, x: int, y: int, direction: Direction) -> None:
         super().__init__(x, y, direction)
         
     @property

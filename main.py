@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     model = ZumaTowerModel(
         enemies=enemies,
-        user_hp=config["player_lives"],
+        user_hp=config.get("player_lives", 3),  # user_hp=config["player_lives"],
         max_rounds=rounds,
         game_over_condition=SimpleGameOverCondition(),
         rng=rng,

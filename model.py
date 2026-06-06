@@ -71,6 +71,7 @@ class ZumaTowerModel:
         self._nickname: str = ""
         self._leaderboard_file: str = "leaderboard.json"
         self._pending_direction: Direction = Direction.UP
+        self._settings_enemies: int = len(enemies) if enemies else 8
 
         self._mark_path_cells()
         self._load_generation_round()
@@ -393,15 +394,11 @@ class ZumaTowerModel:
             if not tower.can_shoot():
                 continue
             
-            grid_c = int(tower.x // CELL_SIZE)
-            grid_r = int(tower.y // CELL_SIZE)
-            assigned_dir = self._tower_directions.get((grid_r, grid_c), tower.direction)
+            assigned_dir = self._tower_directions.get((tower.r, tower.c), tower.direction)
 
-            vx, vy = self._direction_velocity(assigned_dir) # get velocity of tower's direction
+            vx, vy = self._direction_velocity(assigned_dir)
+            active_colors = list(Color)
             # active_colors = list(set(e.color for e in self._enemies if e.status == EnemyStatus.ALIVE))
-            active_colors = []
-            if not active_colors:
-                active_colors = list(Color)
             if not any(e.status == EnemyStatus.ALIVE for e in self._enemies):
                 continue
             
@@ -458,10 +455,14 @@ class ZumaTowerModel:
             if self._user_hp <= 0:
                 self._state = GameState.GAMEOVER
                 self._is_game_over = True
-            elif self._tot_spawned >= len(self._enemies) and active_count == 0:
+                self._nickname = ""
+                return None
+            if tot_spawned >= total_round_enemies and active_count == 0:
                 if self._game_mode == GameMode.CAMPAIGN and self._curr_round >= self.max_rounds:
+                    self._state = GameState.NAME_INPUT
                     self._state = GameState.GAMEOVER
                     self._is_game_over = True
+                    self._nickname = ""
                 else:
                     self._state = GameState.ROUND_PENDING
 
@@ -480,7 +481,7 @@ class ZumaTowerModel:
         self._load_generation_round()
 
     def try_place_tower(self, row: int, col: int) -> bool:
-        if self._state != GameState.ROUND_PENDING: # only in between rounds
+        if self._state != GameState.ROUND_PENDING:
             return False
         if not (0 <= row < self._rows and 0 <= col < self._cols):
             return False
@@ -489,42 +490,44 @@ class ZumaTowerModel:
             
         cost = Tower.COST
         
-        if self._total_exp >= cost and self._grid[row][col] == CellType.EMPTY: # have enough xp and empty cell
+        if self._total_exp >= cost and self._grid[row][col] == CellType.EMPTY:
             self._total_exp -= cost
-            self._grid[row][col] = CellType.TOWER # mark cell as with tower
-            
-            tower_x = (col * CELL_SIZE) + (CELL_SIZE / 2)
-            tower_y = (row * CELL_SIZE) + (CELL_SIZE / 2) # center of cell
+            self._grid[row][col] = CellType.TOWER
             
             self._tower_directions[(row, col)] = self._pending_direction
-            self._active_towers.append(Tower(tower_x, tower_y, self._pending_direction)) # add to list of towers
+            
+            self._active_towers.append(Tower(row, col, self._pending_direction))
             return True
             
         return False
     
     def try_upgrade_tower(self, row: int, col: int) -> bool:
-        if self._state != GameState.ROUND_PENDING: # only in between rounds
+        if self._state != GameState.ROUND_PENDING:
             return False
         if not (0 <= row < self._rows and 0 <= col < self._cols):
             return False
-        if self._grid[row][col] not in (CellType.TOWER, CellType.UPGRADED_TOWER): # there's a normal tower in the cell clicked
-            print("wow")
+        if self._grid[row][col] not in (CellType.TOWER, CellType.UPGRADED_TOWER): 
             return False
 
-        tower_x = (col * CELL_SIZE) + (CELL_SIZE / 2)
-        tower_y = (row * CELL_SIZE) + (CELL_SIZE / 2)
-
         for i, tower in enumerate(self._active_towers):
-            if abs(tower.x - tower_x) < 1.0 and abs(tower.y - tower_y) < 1.0:
-                if tower.is_upgraded:
-                    return False
-                if self._total_exp < UpgradedTower._cost:
-                    return False
-                self._total_exp -= UpgradedTower._cost
-                curr_dir: Direction = self._tower_directions.get((row, col), tower.direction)
-                self._active_towers[i] = UpgradedTower(tower_x, tower_y, curr_dir) # replace tower with upgraded tower with same dir
-                self._grid[row][col] = CellType.UPGRADED_TOWER  # new cell type
-                return True
+            if tower.r == row and tower.c == col:
+                curr_dir = self._tower_directions.get((row, col), tower.direction)
+                
+                if tower.upgrade_level == 0:
+                    if self._total_exp < UpgradedTower.COST:
+                        return False
+                    self._total_exp -= UpgradedTower.COST
+                    self._active_towers[i] = UpgradedTower(row, col, curr_dir)
+                    self._grid[row][col] = CellType.UPGRADED_TOWER
+                    return True
+                    
+                elif tower.upgrade_level == 1:
+                    if self._total_exp < UpgradedTower2.COST:
+                        return False
+                    self._total_exp -= UpgradedTower2.COST
+                    self._active_towers[i] = UpgradedTower2(row, col, curr_dir)
+                    self._grid[row][col] = CellType.UPGRADED_TOWER # idk
+                    return True
 
         return False
     
@@ -535,10 +538,8 @@ class ZumaTowerModel:
             return False
         
         self._tower_directions[(row, col)] = direction
-        tx = (col * CELL_SIZE) + (CELL_SIZE / 2)
-        ty = (row * CELL_SIZE) + (CELL_SIZE / 2)
         for t in self._active_towers:
-            if t.x == tx and t.y == ty:
+            if t.r == row and t.c == col:
                 t.set_direction(direction)
                 return True
         return False
@@ -551,13 +552,10 @@ class ZumaTowerModel:
         if self._grid[row][col] not in (CellType.TOWER, CellType.UPGRADED_TOWER):
             return False
         
-        tx = (col * CELL_SIZE) + (CELL_SIZE / 2)
-        ty = (row * CELL_SIZE) + (CELL_SIZE / 2)
-
         new_active = []
         exp = 0
         for t in self._active_towers:
-            if not (t.x == tx and t.y == ty):
+            if not (t.r == row and t.c == col):
                 new_active.append(t)
             else:
                 exp = t.COST
@@ -656,19 +654,8 @@ class ZumaTowerModel:
     @property
     def tower_levels(self) -> dict[tuple[int, int], int]:
         result = {}
-        for r in range(self._rows):
-            for c in range(self._cols):
-                if self._grid[r][c] in (CellType.TOWER, CellType.UPGRADED_TOWER):
-                    tx = (c * CELL_SIZE) + (CELL_SIZE / 2)
-                    ty = (r * CELL_SIZE) + (CELL_SIZE / 2)
-                    for t in self._active_towers:
-                        if t.x == tx and t.y == ty:
-                            if isinstance(t, UpgradedTower2):
-                                result[(r, c)] = 2
-                            elif isinstance(t, UpgradedTower):
-                                result[(r, c)] = 1
-                            else:
-                                result[(r, c)] = 0
+        for t in self._active_towers:
+            result[(t.r, t.c)] = t.upgrade_level
         return result
     
     def _mark_path_cells(self) -> None:
@@ -713,3 +700,11 @@ class ZumaTowerModel:
         self._nickname = "ANON"
         self._is_game_over = False
         self._load_generation_round()
+    
+    def save_settings(self) -> None:
+        data = {
+            "enemies_per_round": self._settings_enemies,
+            "players_lives": self._max_hp
+        }
+        with open("settings.json", "w") as f:
+            json.dump(data, f, indent=4)

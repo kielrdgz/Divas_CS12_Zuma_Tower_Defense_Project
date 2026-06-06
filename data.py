@@ -30,6 +30,8 @@ class GameState(StrEnum):
     LEADERBOARD = "LEADERBOARD"
     CONFIRM_RESET = "CONFIRM_RESET"
     CONFIRM_MENU = "CONFIRM_MENU"
+    NAME_INPUT = "NAME_INPUT"
+    SETTINGS = "SETTINGS"
 
 class CellType(StrEnum):
     EMPTY = "EMPTY"
