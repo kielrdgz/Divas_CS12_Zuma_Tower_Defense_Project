@@ -88,6 +88,8 @@ class ZumaTowerModel:
 
         self._mark_path_cells()
         self._load_generation_round()
+        
+        self._quitting_endless: bool = False
 
     # properties
 
@@ -231,6 +233,12 @@ class ZumaTowerModel:
         return result
     
     # helpers
+    
+    def flag_endless_quit(self) -> None:
+        self._quitting_endless = True
+        self._is_game_over = True
+        self._nickname = ""
+        self._state = GameState.NAME_INPUT
     
     def open_confirm_reset(self) -> None:
         self._confirm_prev_state = self._state
@@ -715,6 +723,11 @@ class ZumaTowerModel:
     def save_leaderboard(self) -> None:
         if not self._nickname.strip():
             self._nickname = "ANON"
+            
+        if self._quitting_endless:
+            self._quitting_endless = False
+            self.save_leaderboard_partial()
+            return
         
         data = {
             "name": self._nickname.strip().upper(),

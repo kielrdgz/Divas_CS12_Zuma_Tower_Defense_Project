@@ -163,9 +163,10 @@ class ZumaTowerController:
                 self._model.open_confirm_menu()
 
             if pyxel.btnp(pyxel.KEY_Q):
-                if self._model._game_mode == GameMode.ENDLESS:
-                    self._model.save_leaderboard_partial()
-                self._model.open_confirm_reset()
+                if self._model._game_mode == GameMode.ENDLESS and self._model.curr_round > 1:
+                    self._model.flag_endless_quit()
+                else:
+                    self._model.open_confirm_reset()
                 return None
             
             if pyxel.btnp(pyxel.KEY_B) and not self._tower_menu_open: # B for buy kasi gamit na yung S
@@ -264,9 +265,10 @@ class ZumaTowerController:
                 return None
 
             if pyxel.btnp(pyxel.KEY_Q):
-                if self._model.game_mode == GameMode.ENDLESS:
-                    self._model.save_leaderboard_partial()
-                self._model.open_confirm_reset()
+                if self._model.game_mode == GameMode.ENDLESS and self._model.curr_round > 1:
+                    self._model.flag_endless_quit()
+                else:
+                    self._model.open_confirm_reset()
             elif pyxel.btnp(pyxel.KEY_M):
                 self._model.open_confirm_menu()
             return None
